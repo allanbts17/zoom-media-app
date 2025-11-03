@@ -7,13 +7,13 @@ export type VideoItem = {
 };
 
 export async function getVideos(): Promise<VideoItem[]> {
-    const res = await fetch("/api/videos");
-    if (!res.ok) throw new Error(`Error /api/videos: ${res.status}`);
+    const res = await fetch("/videos");
+    if (!res.ok) throw new Error(`Error /videos: ${res.status}`);
     return res.json();
 }
 
 export async function createBot(meeting_url: string, bot_name?: string) {
-    const res = await fetch("/api/recall/create-bot", {
+    const res = await fetch("/recall/create-bot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ meeting_url, bot_name })
@@ -23,7 +23,7 @@ export async function createBot(meeting_url: string, bot_name?: string) {
 }
 
 export async function outputMedia(bot_id: string, url: string) {
-    const res = await fetch("/api/recall/output-media", {
+    const res = await fetch("/recall/output-media", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bot_id, url })
@@ -33,7 +33,7 @@ export async function outputMedia(bot_id: string, url: string) {
 }
 
 export async function stopMedia(bot_id: string) {
-    const res = await fetch(`/api/recall/output-media?bot_id=${encodeURIComponent(bot_id)}`, {
+    const res = await fetch(`/recall/output-media?bot_id=${encodeURIComponent(bot_id)}`, {
         method: "DELETE"
     });
     if (!res.ok) throw new Error(await safeText(res));

@@ -200,9 +200,9 @@ export default function VideoQueue() {
         });
 
         // Corta antes de pasar al siguiente
-        const res = await fetch(`/api/recall/output-media?bot_id=${encodeURIComponent(botId)}`, { method: "DELETE" });
-        if (!res.ok) throw new Error(await safeText(res));
-
+        // const res = await fetch(`/api/recall/output-media?bot_id=${encodeURIComponent(botId)}`, { method: "DELETE" });
+        // if (!res.ok) throw new Error(await safeText(res));
+        const res = await stopMedia(botId); // no await
         setBusyRow("");
       }
     } catch (e: any) {
