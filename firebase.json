@@ -1,0 +1,28 @@
+{
+  "hosting": {
+    "site": "zoom-app-dev",
+    "public": "out",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [
+      {
+        "source": "/**",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "no-referrer" },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self'; img-src 'self' data: https://storage.googleapis.com; media-src https://storage.googleapis.com 'self'; script-src 'self' https://appssdk.zoom.us; style-src 'self' 'unsafe-inline'; connect-src 'self' https://us-central1-<PROJECT>.cloudfunctions.net https://storage.googleapis.com; frame-ancestors https://*.zoom.us;"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      { "source": "/videos",     "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/videos/**",  "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/recall",     "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/recall/**",  "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/health",     "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "**", "destination": "/index.html" }
+    ]
+  }
+}

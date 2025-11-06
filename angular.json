@@ -62,6 +62,9 @@
               "buildTarget": "zoom-media-angular:build:development"
             }
           },
+          "options": {
+            "proxyConfig": "proxy.dev.json"
+          },
           "defaultConfiguration": "development"
         },
         "extract-i18n": {
