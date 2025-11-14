@@ -27,10 +27,11 @@ export class App implements OnInit {
   botId = '';
 
   err = '';
+  isUploading = false;
 
   constructor(
     private backend: BackendService,
-    private meetingsSvc: MeetingsService,
+    private meetingsService: MeetingsService,
     public zoom: ZoomService
   ) { 
 
@@ -40,10 +41,9 @@ export class App implements OnInit {
   async ngOnInit() {
     //await this.zoom.init();
 
-    this.meetingsSvc.meetings$.subscribe({
+    this.meetingsService.meetings$.subscribe({
       next: (list) => {
         this.meetings = list;
-        console.log('Meetings loaded:', list);
         if (!this.selectedMeetingId() && list.length) {
           this.selectedMeetingId.set(list[0].id!);
         }
@@ -57,8 +57,9 @@ export class App implements OnInit {
     });
   }
 
-  meetingSelected = computed(() => this.meetings.find(m => m.id === this.selectedMeetingId()) || null);
-
+  meetingSelected(){
+    return this.meetings.find(m => m.id === this.selectedMeetingId()) || null;
+  }
   toggle(name: string) {
     this.selectedMap[name] = !this.selectedMap[name];
     this.selectedMap = { ...this.selectedMap };
@@ -74,7 +75,7 @@ export class App implements OnInit {
   async addMeeting() {
     this.err = '';
     try {
-      await this.meetingsSvc.addMeeting(this.newTitle, this.newUrl);
+      await this.meetingsService.addMeeting(this.newTitle, this.newUrl);
       this.newTitle = ''; this.newUrl = '';
     } catch (e: any) {
       this.err = e?.message ?? 'No se pudo añadir la reunión';
@@ -161,6 +162,25 @@ export class App implements OnInit {
 
   async shareApp() {
     await this.zoom.shareApp();
+  }
+
+  async fileChangeListener(event: any) {
+    this.err = '';
+    const file: File = event.target.files[0];
+    if (!file) return; 
+    this.isUploading = true;
+    const formData = new FormData();
+    formData.append('video', file);
+    try {
+      console.log('Uploading file:', file.name, file.size, file.type);
+      // const result = await this.backend.uploadVideo(formData).toPromise()
+      // console.log('Upload result:', result);
+      await this.backend.uploadVideoW(file);
+    } catch (e: any) {
+      console.error('Upload error:', e);
+    } finally {
+      this.isUploading = false;
+    }
   }
 
   private loadDuration(url: string): Promise<number> {

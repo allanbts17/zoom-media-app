@@ -1,27 +1,20 @@
 {
   "/videos": {
-    "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
+    "target": "http://127.0.0.1:5001/zoom-app-dev/us-central1",
     "secure": true,
     "changeOrigin": true,
     "logLevel": "debug",
     "pathRewrite": { "^/videos": "/api/videos" }
   },
   "/recall": {
-    "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
+    "target": "http://127.0.0.1:5001/zoom-app-dev/us-central1",
     "secure": true,
     "changeOrigin": true,
     "logLevel": "debug",
     "pathRewrite": { "^/recall": "/api/recall" }
   },
-  "/upload": {
-    "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
-    "secure": true,
-    "changeOrigin": true,
-    "logLevel": "debug",
-    "pathRewrite": { "^/upload": "/api/upload" }
-  },
   "/health": {
-    "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
+    "target": "http://127.0.0.1:5001/zoom-app-dev/us-central1",
     "secure": true,
     "changeOrigin": true,
     "logLevel": "debug",
