@@ -1,8 +1,16 @@
-<main class="min-h-screen bg-gray-50 text-gray-900 dark:bg-neutral-900 dark:text-neutral-100 p-4 max-w-5xl mx-auto">
-  <h1 class="text-2xl font-semibold mb-3">Zoom Media Controller (Angular)</h1>
+<main class="min-h-screensd h-full bg-gray-50 text-gray-900 dark:bg-neutral-900 dark:text-neutral-100 p-4 max-w-5xl mx-auto
+flex flex-col overflow-hidden
+">
+
+
+    <h1 class="flex-none text-2xl font-semibold mb-3">Zoom Media Controller</h1>
 
   <!-- Meetings -->
-  <section class="rounded-lg border p-3 mb-4 bg-white/5">
+  <section id="meetingsContainer" class="flex-none rounded-lg border p-3 mb-4 bg-white/5 relative">
+    <svg  (click)="toogleContainer()" class="absolute top-3 right-3 caret" width="15" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+      <path fill="currentColor" d="M17.704 6.58l-6.972 8.086a.967.967 0 0 1-1.463 0L2.296 6.58C1.76 5.96 1.967 5 2.791 5h14.42c.821 0 1.029.96.493 1.58z"/>
+    </svg>
+
     <label class="text-sm block mb-1">Selecciona una reunión guardada</label>
     <select class="border rounded px-3 py-2 w-full"
             [ngModel]="selectedMeetingId()"
@@ -53,7 +61,7 @@
   </section>
 
   <!-- Acciones globales -->
-  <div class="flex gap-2 mb-3">
+  <div class="flex-none flex gap-2 mb-3">
     <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
             (click)="playQueue()"
             [disabled]="!botId || playing || selectedList().length === 0">
@@ -61,23 +69,28 @@
     </button>
     <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
             (click)="stopNow()" [disabled]="!botId">
-      Detener ahora
+      Detener
+    </button>
+    <button class="px-3 py-2 rounded border bg-red-500 hover:bg-red-400 disabled:opacity-50"
+            (click)="deletedSelectedVideos()" [disabled]="selectedList().length === 0">
+      Eliminar
     </button>
   </div>
 
   <!-- Errores -->
-  <div *ngIf="err" class="mb-3 p-2 border border-red-400 text-red-200 rounded bg-red-900/30">
+  <div *ngIf="err" class="flex-none mb-3 p-2 border border-red-400 text-red-200 rounded bg-red-900/30">
     {{ err }}
   </div>
 
+
   <!-- Tabla de videos -->
-  <section class="rounded-lg border overflow-hidden">
+  <section class="rounded-lg border flex-1 overflow-hiddenxcb overflow-auto">
     <table class="w-full text-sm">
       <thead class="bg-black/20">
         <tr>
           <th class="text-left p-2 w-10"></th>
           <th class="text-left p-2">Nombre</th>
-          <th class="text-left p-2">Tamaño</th>
+          <!-- <th class="text-left p-2">Tamaño</th> -->
           <th class="text-left p-2">Duración</th>
           <th class="text-left p-2">Acciones</th>
         </tr>
@@ -88,29 +101,20 @@
 
         <tr *ngFor="let v of videos" class="border-t border-white/10">
           <td class="p-2">
-            <input type="checkbox" [checked]="!!selectedMap[v.name]" (change)="toggle(v.name)" />
+            <input type="checkbox" [checked]="!!selectedMap[v.videoPath]" (change)="toggle(v.videoPath)" />
           </td>
-          <td class="p-2 break-all">{{ v.name }}</td>
-          <td class="p-2">{{ v.size ? (v.size/1024/1024 | number:'1.1-1') + ' MB' : '-' }}</td>
+          <td class="p-2 break-all">{{ getName(v.videoPath) }}</td>
+          <!-- <td class="p-2">{{ v.size ? (v.size/1024/1024 | number:'1.1-1') + ' MB' : '-' }}</td> -->
           <td class="p-2">
-            <ng-container *ngIf="v.duration != null; else calcBtn">
               {{ (v.duration/60 | number:'1.0-0') }}:{{ (v.duration%60 | number:'2.0-0') }}
-            </ng-container>
-            <ng-template #calcBtn>
-              <button class="text-blue-300 hover:underline disabled:opacity-50"
-                      [disabled]="busyRow === v.name"
-                      (click)="calculateDuration(v)">
-                calcular
-              </button>
-            </ng-template>
           </td>
           <td class="p-2">
             <div class="flex gap-2">
               <button class="px-2 py-1 border rounded disabled:opacity-50"
-                      (click)="playSingle(v)" [disabled]="!botId || busyRow === v.name">
-                {{ busyRow === v.name ? '...' : 'Reproducir' }}
+                      (click)="playSingle(v)" [disabled]="!botId || busyRow === v.videoPath">
+                {{ busyRow === v.videoPath ? '...' : 'Reproducir' }}
               </button>
-              <a class="px-2 py-1 border rounded hover:bg-white/10" [href]="v.publicUrl" target="_blank" rel="noreferrer">
+              <a class="px-2 py-1 border rounded hover:bg-white/10" [href]="v.videoUrl" target="_blank" rel="noreferrer">
                 Abrir URL
               </a>
             </div>
@@ -120,7 +124,9 @@
     </table>
   </section>
 
-  <p class="mt-3 text-xs text-gray-400">
+  <p class="flex-none mt-3 text-xs text-gray-400">
     Tip: “Duración” se calcula con metadatos del video sin descargar el archivo completo.
   </p>
 </main>
+
+<app-loading-overlay></app-loading-overlay>

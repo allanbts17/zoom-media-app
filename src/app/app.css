@@ -10,3 +10,13 @@
 .animate-loading-bar {
   animation: loading-bar 1.1s ease-in-out infinite;
 }
+
+.collapsed {
+  max-height: 40px;
+  overflow: hidden;
+  .caret { transform: rotate(0deg); }
+}
+
+.caret {
+  transform: rotate(180deg);
+}

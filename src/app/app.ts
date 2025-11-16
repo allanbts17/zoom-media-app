@@ -1,13 +1,15 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Meeting, MeetingsService } from './shared/services/meetings.service';
 import { BackendService, VideoItem } from './shared/services/backend.service';
 import { ZoomService } from './shared/services/zoom.service';
+import { LoadingOverlayComponent } from './shared/components/loading-overlay/loading-overlay.component';
+import { LoadingService } from './shared/services/loading.service';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingOverlayComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -32,15 +34,19 @@ export class App implements OnInit {
   constructor(
     private backend: BackendService,
     private meetingsService: MeetingsService,
-    public zoom: ZoomService
+    public zoom: ZoomService,
+    private loadingservice: LoadingService,
   ) { 
 
-
+    backend.videos$.subscribe({
+      next: (list) => { this.videos = list; this.loading = false; },
+      error: (e) => { this.err = e?.message ?? 'Error cargando videos'; this.loading = false; }
+    });
   }
 
   async ngOnInit() {
     //await this.zoom.init();
-
+    //this.loadingservice.show();
     this.meetingsService.meetings$.subscribe({
       next: (list) => {
         this.meetings = list;
@@ -51,10 +57,14 @@ export class App implements OnInit {
       error: (e) => (this.err = e?.message ?? 'Error leyendo reuniones'),
     });
 
-    this.backend.listVideos().subscribe({
-      next: (list) => { this.videos = list; this.loading = false; },
-      error: (e) => { this.err = e?.message ?? 'Error cargando videos'; this.loading = false; }
-    });
+    this.listVideos();
+  }
+
+  listVideos() {
+    //     this.backend.listVideos().subscribe({
+    //   next: (list) => { this.videos = list; this.loading = false; },
+    //   error: (e) => { this.err = e?.message ?? 'Error cargando videos'; this.loading = false; }
+    // });
   }
 
   meetingSelected(){
@@ -65,12 +75,16 @@ export class App implements OnInit {
     this.selectedMap = { ...this.selectedMap };
   }
 
-  calculateDuration(v: VideoItem) {
-    this.err = '';
-    this.busyRow = v.name;
-    this.loadDuration(v.publicUrl).then(d => { v.duration = d; this.busyRow = ''; }).catch(_ => this.busyRow = '');
-  }
+  // calculateDuration(v: VideoItem) {
+  //   this.err = '';
+  //   this.busyRow = v.name;
+  //   this.loadDuration(v.publicUrl).then(d => { v.duration = d; this.busyRow = ''; }).catch(_ => this.busyRow = '');
+  // }
 
+  getName(path: string): string {
+    const parts = path.split('/');
+    return parts[1];
+  }
 
   async addMeeting() {
     this.err = '';
@@ -97,11 +111,11 @@ export class App implements OnInit {
   async playSingle(v: VideoItem) {
     if (!this.botId) { this.err = 'Crea el bot primero'; return; }
     try {
-      this.busyRow = v.name;
+      this.busyRow = v.videoPath;
       if (v.duration == null) {
-        try { v.duration = await this.loadDuration(v.publicUrl); } catch { }
+        try { v.duration = await this.loadDuration(v.videoUrl); } catch { }
       }
-      await this.backend.outputMedia(this.botId, v.publicUrl).toPromise();
+      await this.backend.outputMedia(this.botId, v.videoUrl).toPromise();
     } catch (e: any) {
       this.err = e?.message ?? 'Error reproduciendo';
     } finally {
@@ -121,7 +135,7 @@ export class App implements OnInit {
   }
 
   selectedList(): VideoItem[] {
-    return this.videos.filter(v => this.selectedMap[v.name]);
+    return this.videos.filter(v => this.selectedMap[v.videoPath]);
   }
 
   async playQueue() {
@@ -136,15 +150,15 @@ export class App implements OnInit {
       // pre-calc durations
       for (const v of queue) {
         if (v.duration == null) {
-          try { v.duration = await this.loadDuration(v.publicUrl); }
+          try { v.duration = await this.loadDuration(v.videoUrl); }
           catch { v.duration = 0; }
         }
       }
 
       const bufferMs = 700;
       for (const v of queue) {
-        this.busyRow = v.name;
-        await this.backend.outputMedia(this.botId, v.publicUrl).toPromise();
+        this.busyRow = v.videoPath;
+        await this.backend.outputMedia(this.botId, v.videoUrl).toPromise();
 
         const waitMs = Math.max(1000, Math.floor((v.duration ?? 0) * 1000) + bufferMs);
         await new Promise<void>(res => setTimeout(res, waitMs));
@@ -173,9 +187,8 @@ export class App implements OnInit {
     formData.append('video', file);
     try {
       console.log('Uploading file:', file.name, file.size, file.type);
-      // const result = await this.backend.uploadVideo(formData).toPromise()
-      // console.log('Upload result:', result);
-      await this.backend.uploadVideoW(file);
+      await this.backend.uploadVideo(file);
+      this.listVideos();
     } catch (e: any) {
       console.error('Upload error:', e);
     } finally {
@@ -195,5 +208,20 @@ export class App implements OnInit {
       };
       v.onerror = () => { cleanup(); reject(new Error('Metadata load error')); };
     });
+  }
+
+  async deletedSelectedVideos() {
+    const selected = this.selectedList().map(v => v.videoPath); 
+    console.log('Delete selected videos:', selected);
+    this.loadingservice.show();
+    for (const v of selected) {
+      await this.backend.deleteVideo(v)
+    }
+    this.listVideos();
+    this.loadingservice.hide();
+  }
+
+  toogleContainer(){
+    document.getElementById('meetingsContainer')?.classList.toggle('collapsed');
   }
 }
