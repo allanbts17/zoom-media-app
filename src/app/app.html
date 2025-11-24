@@ -88,33 +88,36 @@ flex flex-col overflow-hidden
     <table class="w-full text-sm">
       <thead class="bg-black/20">
         <tr>
-          <th class="text-left p-2 w-10"></th>
+          <th class="text-left p-2"></th>
+          <th class="text-left p-2 w-20"></th>
           <th class="text-left p-2">Nombre</th>
-          <!-- <th class="text-left p-2">Tamaño</th> -->
           <th class="text-left p-2">Duración</th>
           <th class="text-left p-2">Acciones</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody cdkDropList (cdkDropListDropped)="drop($event)">
         <tr *ngIf="loading"><td colspan="5" class="p-3 text-center text-gray-400">Cargando...</td></tr>
         <tr *ngIf="!loading && videos.length === 0"><td colspan="5" class="p-3 text-center text-gray-400">No hay videos .mp4</td></tr>
 
-        <tr *ngFor="let v of videos" class="border-t border-white/10">
+        <tr *ngFor="let v of videos" class="border-t border-white/10" cdkDrag>
           <td class="p-2">
-            <input type="checkbox" [checked]="!!selectedMap[v.videoPath]" (change)="toggle(v.videoPath)" />
+            <input width="20" height="20" type="checkbox" [checked]="!!selectedMap[v.videoPath]" (change)="toggle(v.videoPath)" />
+          </td>
+          <td class="p-2">
+            <img class="w-20 h-16 object-cover bg-black/10 rounded"
+                [src]="v.thumbnailUrl" alt="Thumbnail" />
           </td>
           <td class="p-2 break-all">{{ getName(v.videoPath) }}</td>
-          <!-- <td class="p-2">{{ v.size ? (v.size/1024/1024 | number:'1.1-1') + ' MB' : '-' }}</td> -->
           <td class="p-2">
               {{ (v.duration/60 | number:'1.0-0') }}:{{ (v.duration%60 | number:'2.0-0') }}
           </td>
           <td class="p-2">
-            <div class="flex gap-2">
+            <div class="flex flex-col gap-2">
               <button class="px-2 py-1 border rounded disabled:opacity-50"
                       (click)="playSingle(v)" [disabled]="!botId || busyRow === v.videoPath">
                 {{ busyRow === v.videoPath ? '...' : 'Reproducir' }}
               </button>
-              <a class="px-2 py-1 border rounded hover:bg-white/10" [href]="v.videoUrl" target="_blank" rel="noreferrer">
+              <a class="px-2 py-1 border text-center rounded hover:bg-white/10" [href]="v.videoUrl" target="_blank" rel="noreferrer">
                 Abrir URL
               </a>
             </div>

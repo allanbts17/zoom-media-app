@@ -6,10 +6,11 @@ import { BackendService, VideoItem } from './shared/services/backend.service';
 import { ZoomService } from './shared/services/zoom.service';
 import { LoadingOverlayComponent } from './shared/components/loading-overlay/loading-overlay.component';
 import { LoadingService } from './shared/services/loading.service';
+import {CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray} from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, LoadingOverlayComponent],
+  imports: [CommonModule, FormsModule, LoadingOverlayComponent, CdkDropList, CdkDrag],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -39,7 +40,7 @@ export class App implements OnInit {
   ) { 
 
     backend.videos$.subscribe({
-      next: (list) => { this.videos = list; this.loading = false; },
+      next: (list) => { this.videos = list; this.loading = false; console.log(this.videos) },
       error: (e) => { this.err = e?.message ?? 'Error cargando videos'; this.loading = false; }
     });
   }
@@ -66,6 +67,11 @@ export class App implements OnInit {
     //   error: (e) => { this.err = e?.message ?? 'Error cargando videos'; this.loading = false; }
     // });
   }
+
+  drop(event: CdkDragDrop<VideoItem[]>) {
+    moveItemInArray(this.videos, event.previousIndex, event.currentIndex);
+  }
+
 
   meetingSelected(){
     return this.meetings.find(m => m.id === this.selectedMeetingId()) || null;
