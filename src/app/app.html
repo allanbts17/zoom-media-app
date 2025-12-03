@@ -27,10 +27,10 @@ flex flex-col overflow-hidden
         {{ botId ? 'Bot listo ✅' : 'Crear bot y unir' }}
       </button>
 
-      <!-- <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
-              (click)="shareApp()" [disabled]="!zoom.ready">
-        Compartir app
-      </button> -->
+      <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
+              (click)="removeBot()" [disabled]="!botId">
+        Retirar bot
+      </button>
 
       <span *ngIf="botId" class="text-sm">Bot ID: <span class="font-mono">{{ botId }}</span></span>
     </div>

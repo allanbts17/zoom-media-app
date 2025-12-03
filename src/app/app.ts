@@ -184,6 +184,17 @@ export class App implements OnInit {
     await this.zoom.shareApp();
   }
 
+  async removeBot() {
+    this.err = '';
+    if (!this.botId) { this.err = 'No hay bot para retirar'; return; }
+    try {
+      await this.backend.removeBot(this.botId).toPromise();
+      this.botId = '';
+    } catch (e: any) {
+      this.err = e?.message ?? 'No se pudo retirar el bot';
+    }
+  }
+
   async fileChangeListener(event: any) {
     this.err = '';
     const file: File = event.target.files[0];

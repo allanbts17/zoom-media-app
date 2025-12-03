@@ -34,10 +34,16 @@ export class BackendService {
     return this.http.delete(`/videos/${filename}`).toPromise();
   }
 
-  createBot(meetingUrl: string, botName = 'MediaBot') {
+  createBot(meetingUrl: string, botName = 'Zoom Media Bot') {
     return this.http.post<{ id: string }>('/recall/create-bot', {
       meeting_url: meetingUrl,
       bot_name: botName,
+    });
+  }
+
+  removeBot(botId: string) {
+    return this.http.post<{ id: string }>('/recall/remove-bot', {
+      bot_id: botId
     });
   }
 
