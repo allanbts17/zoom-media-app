@@ -6,11 +6,13 @@ import { BackendService, VideoItem } from './shared/services/backend.service';
 import { ZoomService } from './shared/services/zoom.service';
 import { LoadingOverlayComponent } from './shared/components/loading-overlay/loading-overlay.component';
 import { LoadingService } from './shared/services/loading.service';
-import {CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray} from '@angular/cdk/drag-drop';
+import {CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, CdkDragHandle} from '@angular/cdk/drag-drop';
+import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
+import { ModalService } from './shared/services/modal.service';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, LoadingOverlayComponent, CdkDropList, CdkDrag],
+  imports: [CommonModule, FormsModule, LoadingOverlayComponent, CdkDropList, CdkDrag, CdkDragHandle, ConfirmModalComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -37,6 +39,7 @@ export class App implements OnInit {
     private meetingsService: MeetingsService,
     public zoom: ZoomService,
     private loadingservice: LoadingService,
+    public confirmService: ModalService
   ) { 
 
     backend.videos$.subscribe({
@@ -228,7 +231,11 @@ export class App implements OnInit {
   }
 
   async deletedSelectedVideos() {
-    const selected = this.selectedList().map(v => v.videoPath); 
+
+    let confirm = await this.confirmService.confirm('Confirmación', '¿Seguro que quieres borrar?')
+    if(!confirm) return;
+
+    const selected = this.selectedList()
     console.log('Delete selected videos:', selected);
     this.loadingservice.show();
     for (const v of selected) {

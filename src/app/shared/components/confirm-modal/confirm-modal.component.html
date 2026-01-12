@@ -1,0 +1,14 @@
+
+
+
+<div class="overlay" *ngIf="(modalData$ | async)?.show">
+    <div class="modal" >
+        <h3>{{ (modalData$ | async)?.title }}</h3>
+        <p>{{ (modalData$ | async)?.message }}</p>
+
+        <div class="actions">
+            <button (click)="confirmAction(false)">Cancelar</button>
+            <button class="danger" (click)="confirmAction(true)">Confirmar</button>
+        </div>
+    </div>
+</div>

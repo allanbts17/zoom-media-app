@@ -30,8 +30,8 @@ export class BackendService {
     return this.http.get<VideoItem[]>('/videos');
   }
 
-  async deleteVideo(filename: string) {
-    return this.http.delete(`/videos/${filename}`).toPromise();
+  async deleteVideo(item: VideoItem) {
+    return this.http.post(`/videos/delete`, { videoData: item }).toPromise();
   }
 
   createBot(meetingUrl: string, botName = 'Zoom Media Bot') {

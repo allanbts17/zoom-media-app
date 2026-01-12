@@ -100,7 +100,7 @@ flex flex-col overflow-hidden
         <tr *ngIf="!loading && videos.length === 0"><td colspan="5" class="p-3 text-center text-gray-400">No hay videos .mp4</td></tr>
 
         <tr *ngFor="let v of videos" class="border-t border-white/10" cdkDrag>
-          <td class="p-2">
+          <td class="p-2" cdkDragHandle>
             <input width="20" height="20" type="checkbox" [checked]="!!selectedMap[v.videoPath]" (change)="toggle(v.videoPath)" />
           </td>
           <td class="p-2">
@@ -132,4 +132,5 @@ flex flex-col overflow-hidden
   </p>
 </main>
 
+<app-confirm-modal></app-confirm-modal>
 <app-loading-overlay></app-loading-overlay>
