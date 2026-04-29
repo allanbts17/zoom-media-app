@@ -96,7 +96,7 @@ export class App implements OnInit {
   get displayedVideos(): VideoItem[] {
     let list: VideoItem[] = [];
     let order: string[] = [];
-    
+
     if (this.activeListId() === 'all') {
       list = [...this.videos];
       order = this.globalVideoOrder;
@@ -128,7 +128,7 @@ export class App implements OnInit {
     if (!this.reorderMode) return;
     const newDisplayed = [...this.displayedVideos];
     moveItemInArray(newDisplayed, event.previousIndex, event.currentIndex);
-    
+
     const newOrder = newDisplayed.map(v => v.videoPath);
     if (this.activeListId() === 'all') {
       this.globalVideoOrder = newOrder;
@@ -207,7 +207,7 @@ export class App implements OnInit {
   async addSelectedToList(listId: string) {
     const queue = this.selectedList();
     if (queue.length === 0 || !listId) return;
-    
+
     const targetList = this.videoLists.find(l => l.id === listId);
     if (!targetList || !targetList.id) return;
 
@@ -251,7 +251,7 @@ export class App implements OnInit {
 
   async deleteCurrentList() {
     if (this.activeListId() === 'all') return;
-    
+
     let confirm = await this.confirmService.confirm('Confirmación', '¿Seguro que quieres borrar la lista actual?');
     if (!confirm) return;
 
@@ -405,11 +405,12 @@ export class App implements OnInit {
     this.err = '';
     if (!this.botId) { this.err = 'No hay bot para retirar'; return; }
     try {
-      this.botId = '';
-      this.updateConfig()
       await this.backend.removeBot(this.botId).toPromise();
     } catch (e: any) {
       this.err = e?.message ?? 'No se pudo retirar el bot';
+    } finally {
+      this.botId = '';
+      this.updateConfig()
     }
   }
 
