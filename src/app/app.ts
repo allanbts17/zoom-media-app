@@ -23,7 +23,8 @@ import { VideoListsService } from './shared/services/video-lists.service';
 
 export class App implements OnInit {
   meetings: Meeting[] = [];
-  selectedMeetingId = signal<string>('');
+  private static readonly MEETING_CACHE_KEY = 'selectedMeetingId';
+  selectedMeetingId = signal<string>(localStorage.getItem(App.MEETING_CACHE_KEY) ?? '');
   newTitle = '';
   newUrl = '';
 
@@ -76,8 +77,10 @@ export class App implements OnInit {
     this.meetingsService.meetings$.subscribe({
       next: (list) => {
         this.meetings = list;
-        if (!this.selectedMeetingId() && list.length) {
-          this.selectedMeetingId.set(list[0].id!);
+        const cached = this.selectedMeetingId();
+        const cachedStillValid = cached && list.some(m => m.id === cached);
+        if (!cachedStillValid && list.length) {
+          this.selectMeeting(list[0].id!);
         }
       },
       error: (e) => (this.err = e?.message ?? 'Error leyendo reuniones'),
@@ -271,6 +274,11 @@ export class App implements OnInit {
     });
   }
 
+
+  selectMeeting(id: string) {
+    this.selectedMeetingId.set(id);
+    localStorage.setItem(App.MEETING_CACHE_KEY, id);
+  }
 
   meetingSelected() {
     return this.meetings.find(m => m.id === this.selectedMeetingId()) || null;

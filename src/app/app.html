@@ -23,7 +23,7 @@ flex flex-col overflow-hidden
       <label class="text-sm block mb-1 text-gray-700 dark:text-gray-300">Selecciona una reunión guardada</label>
       <select class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 w-full bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               [ngModel]="selectedMeetingId()"
-              (ngModelChange)="selectedMeetingId.set($event)">
+              (ngModelChange)="selectMeeting($event)">
         <option value="">-- Selecciona --</option>
         <option *ngFor="let m of meetings" [value]="m.id">
           {{ (m.title ? (m.title + ' · ') : '') + m.url }}

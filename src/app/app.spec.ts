@@ -114,4 +114,58 @@ describe('App', () => {
     expect(backendMock.uploadVideo).toHaveBeenCalledTimes(2);
     expect(mockEvent.target.value).toBe('');
   });
+
+  it('should persist selected meeting id to localStorage', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    spyOn(localStorage, 'setItem');
+
+    app.selectMeeting('meeting-abc');
+
+    expect(app.selectedMeetingId()).toBe('meeting-abc');
+    expect(localStorage.setItem).toHaveBeenCalledWith('selectedMeetingId', 'meeting-abc');
+  });
+
+  it('should restore cached meeting id from localStorage when valid', async () => {
+    spyOn(localStorage, 'getItem').and.returnValue('meeting-xyz');
+
+    const meeting1 = { id: 'meeting-xyz', title: 'Cached', url: 'https://zoom.us/1' };
+    const meeting2 = { id: 'meeting-other', title: 'Other', url: 'https://zoom.us/2' };
+
+    const { Subject } = await import('rxjs');
+    const meetingsSubject = new Subject<any[]>();
+    meetingsMock.meetings$ = meetingsSubject.asObservable();
+
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    fixture.detectChanges(); // ngOnInit
+
+    meetingsSubject.next([meeting1, meeting2]);
+
+    // Cached id is still valid — should NOT be overridden
+    expect(app.selectedMeetingId()).toBe('meeting-xyz');
+  });
+
+  it('should fall back to first meeting when cached id is not found', async () => {
+    spyOn(localStorage, 'getItem').and.returnValue('stale-id');
+
+    const meeting1 = { id: 'meeting-first', title: 'First', url: 'https://zoom.us/1' };
+    const meeting2 = { id: 'meeting-second', title: 'Second', url: 'https://zoom.us/2' };
+
+    const { Subject } = await import('rxjs');
+    const meetingsSubject = new Subject<any[]>();
+    meetingsMock.meetings$ = meetingsSubject.asObservable();
+
+    spyOn(localStorage, 'setItem');
+
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    fixture.detectChanges(); // ngOnInit
+
+    meetingsSubject.next([meeting1, meeting2]);
+
+    // Stale cached id not in list → should fall back to first meeting
+    expect(app.selectedMeetingId()).toBe('meeting-first');
+    expect(localStorage.setItem).toHaveBeenCalledWith('selectedMeetingId', 'meeting-first');
+  });
 });
