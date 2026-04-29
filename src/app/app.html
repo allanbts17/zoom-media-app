@@ -28,7 +28,7 @@ flex flex-col overflow-hidden
       </button>
 
       <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
-              (click)="removeBot()" [disabled]="!botId">
+              (click)="removeBot()" >
         Retirar bot
       </button>
 
@@ -109,7 +109,7 @@ flex flex-col overflow-hidden
           </td>
           <td class="p-2 break-all">{{ getName(v.videoPath) }}</td>
           <td class="p-2">
-              {{ (v.duration/60 | number:'1.0-0') }}:{{ (v.duration%60 | number:'2.0-0') }}
+              {{ v.duration | duration }}
           </td>
           <td class="p-2">
             <div class="flex flex-col gap-2">

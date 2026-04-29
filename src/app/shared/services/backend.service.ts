@@ -1,16 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { LoadingService } from './loading.service';
-import { Firestore, CollectionReference, collection, collectionData } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
-
-export type VideoItem = {
-  videoPath: string;
-  thumbnailPath: string;
-  thumbnailUrl: string;
-  videoUrl: string;
-  duration: number;
-};
+import { Firestore, CollectionReference, collection, collectionData, setDoc, doc, docData, DocumentData } from '@angular/fire/firestore';
+import { Observable, Subscription } from 'rxjs';
+import { Config, VideoItem } from '../interfaces';
 
 @Injectable({
   providedIn: 'root',
@@ -20,10 +13,24 @@ export class BackendService {
   private firestore = inject(Firestore);
   videos$: Observable<VideoItem[]>;
   videosCollection: CollectionReference;
+  dataCollection: CollectionReference;
+  private configRef = doc(this.firestore, 'data/config');
+  private subscription?: Subscription;
+  configData$:  Observable<Config | undefined>
 
   constructor(private http: HttpClient, private loading: LoadingService) {
     this.videosCollection = collection(this.firestore, 'videos');
     this.videos$ = collectionData(this.videosCollection) as Observable<VideoItem[]>;
+    this.dataCollection = collection(this.firestore, 'data');
+    this.configData$ = docData(this.configRef) as Observable<Config | undefined>;
+
+    // .subscribe(data => {
+    //   console.log('Documento actualizado:', data);
+    // });
+  }
+
+  setConfig(config: Config) {
+    return setDoc(this.configRef, config);
   }
 
   listVideos() {

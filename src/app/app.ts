@@ -1,18 +1,21 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Meeting, MeetingsService } from './shared/services/meetings.service';
-import { BackendService, VideoItem } from './shared/services/backend.service';
+import { MeetingsService } from './shared/services/meetings.service';
+import { BackendService } from './shared/services/backend.service';
 import { ZoomService } from './shared/services/zoom.service';
 import { LoadingOverlayComponent } from './shared/components/loading-overlay/loading-overlay.component';
 import { LoadingService } from './shared/services/loading.service';
-import {CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, CdkDragHandle} from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, CdkDragHandle } from '@angular/cdk/drag-drop';
 import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
 import { ModalService } from './shared/services/modal.service';
+import { Meeting, VideoItem } from './shared/interfaces';
+import { DurationPipe } from './shared/pipes/duration-pipe';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, LoadingOverlayComponent, CdkDropList, CdkDrag, CdkDragHandle, ConfirmModalComponent],
+  imports: [CommonModule, FormsModule, LoadingOverlayComponent,
+    CdkDropList, CdkDrag, CdkDragHandle, ConfirmModalComponent, DurationPipe],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -40,16 +43,24 @@ export class App implements OnInit {
     public zoom: ZoomService,
     private loadingservice: LoadingService,
     public confirmService: ModalService
-  ) { 
+  ) {
 
     backend.videos$.subscribe({
       next: (list) => { this.videos = list; this.loading = false; console.log(this.videos) },
       error: (e) => { this.err = e?.message ?? 'Error cargando videos'; this.loading = false; }
     });
+    backend.configData$.subscribe({
+      next: (config) => {
+        this.botId = config?.botId ?? '';
+        this.busyRow = config?.busyRow ?? '';
+        this.playing = config?.playing ?? false;
+        console.log('Config loaded:', config);
+      },
+      error: (e) => { this.err = e?.message ?? 'Error cargando configuración'; }
+    });
   }
 
   async ngOnInit() {
-    //await this.zoom.init();
     //this.loadingservice.show();
     this.meetingsService.meetings$.subscribe({
       next: (list) => {
@@ -60,23 +71,23 @@ export class App implements OnInit {
       },
       error: (e) => (this.err = e?.message ?? 'Error leyendo reuniones'),
     });
-
-    this.listVideos();
   }
 
-  listVideos() {
-    //     this.backend.listVideos().subscribe({
-    //   next: (list) => { this.videos = list; this.loading = false; },
-    //   error: (e) => { this.err = e?.message ?? 'Error cargando videos'; this.loading = false; }
-    // });
-  }
 
   drop(event: CdkDragDrop<VideoItem[]>) {
     moveItemInArray(this.videos, event.previousIndex, event.currentIndex);
   }
 
+  updateConfig() {
+    return this.backend.setConfig({
+      botId: this.botId,
+      busyRow: this.busyRow,
+      playing: this.playing
+    });
+  }
 
-  meetingSelected(){
+
+  meetingSelected() {
     return this.meetings.find(m => m.id === this.selectedMeetingId()) || null;
   }
   toggle(name: string) {
@@ -112,6 +123,7 @@ export class App implements OnInit {
     try {
       const res = await this.backend.createBot(meeting.url).toPromise();
       this.botId = String(res?.id ?? '');
+      this.updateConfig()
     } catch (e: any) {
       this.err = e?.message ?? 'No se pudo crear el bot';
     }
@@ -121,6 +133,7 @@ export class App implements OnInit {
     if (!this.botId) { this.err = 'Crea el bot primero'; return; }
     try {
       this.busyRow = v.videoPath;
+      await this.updateConfig()
       if (v.duration == null) {
         try { v.duration = await this.loadDuration(v.videoUrl); } catch { }
       }
@@ -129,6 +142,7 @@ export class App implements OnInit {
       this.err = e?.message ?? 'Error reproduciendo';
     } finally {
       this.busyRow = '';
+      this.updateConfig()
     }
   }
 
@@ -140,6 +154,7 @@ export class App implements OnInit {
       this.err = e?.message ?? 'Error deteniendo';
     } finally {
       this.playing = false;
+      this.updateConfig()
     }
   }
 
@@ -155,6 +170,7 @@ export class App implements OnInit {
     if (this.playing) return;
 
     this.playing = true;
+    this.updateConfig()
     try {
       // pre-calc durations
       for (const v of queue) {
@@ -167,6 +183,7 @@ export class App implements OnInit {
       const bufferMs = 700;
       for (const v of queue) {
         this.busyRow = v.videoPath;
+        await this.updateConfig()
         await this.backend.outputMedia(this.botId, v.videoUrl).toPromise();
 
         const waitMs = Math.max(1000, Math.floor((v.duration ?? 0) * 1000) + bufferMs);
@@ -174,12 +191,14 @@ export class App implements OnInit {
 
         await this.backend.stopMedia(this.botId).toPromise();
         this.busyRow = '';
+        await this.updateConfig()
       }
     } catch (e: any) {
       this.err = e?.message ?? 'Error en cola';
     } finally {
       this.busyRow = '';
       this.playing = false;
+      this.updateConfig()
     }
   }
 
@@ -191,8 +210,9 @@ export class App implements OnInit {
     this.err = '';
     if (!this.botId) { this.err = 'No hay bot para retirar'; return; }
     try {
-      await this.backend.removeBot(this.botId).toPromise();
       this.botId = '';
+      this.updateConfig()
+      await this.backend.removeBot(this.botId).toPromise();
     } catch (e: any) {
       this.err = e?.message ?? 'No se pudo retirar el bot';
     }
@@ -201,14 +221,13 @@ export class App implements OnInit {
   async fileChangeListener(event: any) {
     this.err = '';
     const file: File = event.target.files[0];
-    if (!file) return; 
+    if (!file) return;
     this.isUploading = true;
     const formData = new FormData();
     formData.append('video', file);
     try {
       console.log('Uploading file:', file.name, file.size, file.type);
       await this.backend.uploadVideo(file);
-      this.listVideos();
     } catch (e: any) {
       console.error('Upload error:', e);
     } finally {
@@ -233,7 +252,7 @@ export class App implements OnInit {
   async deletedSelectedVideos() {
 
     let confirm = await this.confirmService.confirm('Confirmación', '¿Seguro que quieres borrar?')
-    if(!confirm) return;
+    if (!confirm) return;
 
     const selected = this.selectedList()
     console.log('Delete selected videos:', selected);
@@ -241,11 +260,10 @@ export class App implements OnInit {
     for (const v of selected) {
       await this.backend.deleteVideo(v)
     }
-    this.listVideos();
     this.loadingservice.hide();
   }
 
-  toogleContainer(){
+  toogleContainer() {
     document.getElementById('meetingsContainer')?.classList.toggle('collapsed');
   }
 }
