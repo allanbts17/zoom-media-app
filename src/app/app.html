@@ -6,78 +6,86 @@ flex flex-col overflow-hidden
     <h1 class="flex-none text-2xl font-semibold mb-3">Zoom Media Controller</h1>
 
   <!-- Meetings -->
-  <section id="meetingsContainer" class="flex-none rounded-lg border p-3 mb-4 bg-white/5 relative">
-    <svg  (click)="toogleContainer()" class="absolute top-3 right-3 caret" width="15" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-      <path fill="currentColor" d="M17.704 6.58l-6.972 8.086a.967.967 0 0 1-1.463 0L2.296 6.58C1.76 5.96 1.967 5 2.791 5h14.42c.821 0 1.029.96.493 1.58z"/>
-    </svg>
+  <section class="flex-none rounded-lg border border-gray-400 dark:border-white/20 bg-white dark:bg-white/5 mb-4">
+    <!-- Clickable Header -->
+    <header class="p-3 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+            (click)="toggleMeetings()"
+            [class.rounded-t-lg]="true"
+            [class.rounded-b-lg]="isMeetingsCollapsed()">
+      <h2 class="font-medium text-sm text-gray-700 dark:text-gray-200">Reunión de Zoom</h2>
+      <svg class="transition-transform duration-200 text-gray-500 dark:text-gray-400" [class.rotate-180]="!isMeetingsCollapsed()" width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+      </svg>
+    </header>
 
-    <label class="text-sm block mb-1">Selecciona una reunión guardada</label>
-    <select class="border rounded px-3 py-2 w-full"
-            [ngModel]="selectedMeetingId()"
-            (ngModelChange)="selectedMeetingId.set($event)">
-      <option value="">-- Selecciona --</option>
-      <option *ngFor="let m of meetings" [value]="m.id">
-        {{ (m.title ? (m.title + ' · ') : '') + m.url }}
-      </option>
-    </select>
+    <!-- Collapsible Content -->
+    <div class="p-3 pt-4 border-t border-gray-400 dark:border-white/10" *ngIf="!isMeetingsCollapsed()">
+      <label class="text-sm block mb-1 text-gray-700 dark:text-gray-300">Selecciona una reunión guardada</label>
+      <select class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 w-full bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+              [ngModel]="selectedMeetingId()"
+              (ngModelChange)="selectedMeetingId.set($event)">
+        <option value="">-- Selecciona --</option>
+        <option *ngFor="let m of meetings" [value]="m.id">
+          {{ (m.title ? (m.title + ' · ') : '') + m.url }}
+        </option>
+      </select>
 
-    <div class="flex flex-wrap gap-2 items-center mt-3">
-      <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
-              (click)="createBot()" [disabled]="!meetingSelected()?.url">
-        {{ botId ? 'Bot listo ✅' : 'Crear bot y unir' }}
-      </button>
+      <div class="flex flex-wrap gap-2 items-center mt-3">
+        <button class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
+                (click)="createBot()" [disabled]="!meetingSelected()?.url">
+          {{ botId ? 'Bot listo ✅' : 'Crear bot y unir' }}
+        </button>
 
-      <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
-              (click)="removeBot()" >
-        Retirar bot
-      </button>
+        <button class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
+                (click)="removeBot()" >
+          Retirar bot
+        </button>
 
-      <span *ngIf="botId" class="text-sm">Bot ID: <span class="font-mono">{{ botId }}</span></span>
-    </div>
+        <span *ngIf="botId" class="text-sm text-gray-700 dark:text-gray-300">Bot ID: <span class="font-mono">{{ botId }}</span></span>
+      </div>
 
-    <div class="mt-4 border-t pt-3">
-      <div class="text-sm mb-2">Añadir nueva reunión</div>
-      <div class="flex flex-col md:flex-row gap-2">
-        <input class="border rounded px-3 py-2 flex-1" placeholder="Título (opcional)"
-               [(ngModel)]="newTitle" />
-        <input class="border rounded px-3 py-2 flex-1" placeholder="Zoom meeting URL (requerido)"
-               [(ngModel)]="newUrl" />
-        <button class="px-3 py-2 rounded border hover:bg-white/10" (click)="addMeeting()">Añadir</button>
+      <div class="mt-4 border-t border-gray-400 dark:border-white/10 pt-3">
+        <div class="text-sm mb-2 text-gray-700 dark:text-gray-300">Añadir nueva reunión</div>
+        <div class="flex flex-col md:flex-row gap-2">
+          <input class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 flex-1 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-gray-300" placeholder="Título (opcional)"
+                 [(ngModel)]="newTitle" />
+          <input class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 flex-1 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-gray-300" placeholder="Zoom meeting URL (requerido)"
+                 [(ngModel)]="newUrl" />
+          <button class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10" (click)="addMeeting()">Añadir</button>
+        </div>
+      </div>
+
+      <div class="mt-4 border-t border-gray-400 dark:border-white/10 pt-3">
+        <div class="text-sm mb-2 text-gray-700 dark:text-gray-300">Subir nuevo video</div>
+          <input #fileImportInput type="file" id="fileInput" accept="video/*" multiple (change)="fileChangeListener($event)">
+          <button class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10" (click)="fileImportInput.click()">Añadir video(s)</button>
+            <div *ngIf="isUploading" class="mt-3">
+            <div class="relative w-full h-1 overflow-hidden rounded bg-gray-200 dark:bg-white/10">
+              <div class="absolute inset-y-0 left-0 w-1/3 -translate-x-full animate-loading-bar bg-blue-500 dark:bg-white/70"></div>
+            </div>
+          </div>
       </div>
     </div>
-
-    <div class="mt-4 border-t pt-3">
-      <div class="text-sm mb-2">Subir nuevo video</div>
-        <input #fileImportInput type="file" id="fileInput" accept="video/*" multiple (change)="fileChangeListener($event)">
-        <button class="px-3 py-2 rounded border hover:bg-white/10" (click)="fileImportInput.click()">Añadir video(s)</button>
-          <div *ngIf="isUploading" class="mt-3">
-          <div class="relative w-full h-1 overflow-hidden rounded bg-white/10">
-            <div class="absolute inset-y-0 left-0 w-1/3 -translate-x-full animate-loading-bar bg-white/70"></div>
-          </div>
-        </div>
-    </div>
-
-    
   </section>
 
   <!-- Acciones globales -->
   <div class="flex-none flex flex-wrap gap-2 mb-3 items-center">
     <!--
-    <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
+    <button class="px-3 py-2 rounded border border-gray-300 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
             (click)="playQueue()"
             [disabled]="!botId || playing || selectedList().length === 0">
       Reproducir en cola
     </button>
     -->
-    <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
+    <button class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
             (click)="stopNow()" [disabled]="!botId">
       Detener
     </button>
     
-    <div class="h-6 w-px bg-white/20 mx-2"></div>
+    <div class="h-6 w-px bg-gray-400 dark:bg-white/20 mx-2"></div>
     
-    <label class="text-sm">Lista:</label>
-    <select class="border rounded px-3 py-2 bg-transparent"
+    <label class="text-sm text-gray-700 dark:text-gray-300">Lista:</label>
+    <select class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 bg-white dark:bg-transparent text-gray-900 dark:text-neutral-100"
             [ngModel]="activeListId()"
             (ngModelChange)="activeListId.set($event)">
       <option value="all">Todos los videos</option>
@@ -85,45 +93,45 @@ flex flex-col overflow-hidden
     </select>
 
     <button *ngIf="activeListId() !== 'all'" 
-            class="px-2 py-2 rounded text-red-400 hover:text-red-300 hover:bg-white/5"
+            class="px-2 py-2 rounded text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-white/5"
             (click)="deleteCurrentList()"
             title="Borrar lista actual">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
     </button>
 
     <div class="ml-auto flex gap-2">
-      <button *ngIf="reorderMode" class="px-3 py-2 rounded border hover:bg-white/10"
+      <button *ngIf="reorderMode" class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10"
               (click)="cancelReorder()">
         Cancelar
       </button>
-      <button class="px-3 py-2 rounded border hover:bg-white/10"
-              (click)="toggleReorder()" [ngClass]="{'bg-blue-600 hover:bg-blue-500': reorderMode}">
+      <button class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10"
+              (click)="toggleReorder()" [ngClass]="{'bg-blue-600 hover:bg-blue-500 text-white border-blue-600': reorderMode}">
         {{ reorderMode ? 'Guardar orden' : 'Reordenar' }}
       </button>
     </div>
   </div>
 
   <!-- Barra de acciones de selección -->
-  <div *ngIf="selectedList().length > 0 && !reorderMode" class="flex-none flex flex-wrap gap-2 mb-3 p-3 bg-white/10 rounded-lg items-center border border-white/20">
-    <span class="text-sm font-semibold">{{ selectedList().length }} seleccionados</span>
+  <div *ngIf="selectedList().length > 0 && !reorderMode" class="flex-none flex flex-wrap gap-2 mb-3 p-3 bg-gray-100 dark:bg-white/10 rounded-lg items-center border border-gray-400 dark:border-white/20">
+    <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ selectedList().length }} seleccionados</span>
     
-    <input class="border rounded px-2 py-1 bg-transparent ml-2" placeholder="Nueva lista..." [(ngModel)]="newListTitle" />
-    <button class="px-3 py-1 rounded border hover:bg-white/20 text-sm" (click)="createNewList()">Crear lista</button>
+    <input class="border border-gray-500 dark:border-white/20 rounded px-2 py-1 bg-white dark:bg-transparent text-gray-900 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-gray-300 ml-2" placeholder="Nueva lista..." [(ngModel)]="newListTitle" />
+    <button class="px-3 py-1 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/20 text-sm" (click)="createNewList()">Crear lista</button>
     
-    <div class="h-5 w-px bg-white/20 mx-1"></div>
+    <div class="h-5 w-px bg-gray-400 dark:bg-white/20 mx-1"></div>
     
-    <select #addToListSelect class="border rounded px-2 py-1 bg-transparent text-sm max-w-[150px]">
+    <select #addToListSelect class="border border-gray-500 dark:border-white/20 rounded px-2 py-1 bg-white dark:bg-transparent text-gray-900 dark:text-neutral-100 text-sm max-w-[150px]">
       <option value="">-- Añadir a lista --</option>
       <option *ngFor="let list of videoLists" [value]="list.id">{{ list.name }}</option>
     </select>
-    <button class="px-3 py-1 rounded border hover:bg-white/20 text-sm" (click)="addSelectedToList(addToListSelect.value)">Añadir</button>
+    <button class="px-3 py-1 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/20 text-sm" (click)="addSelectedToList(addToListSelect.value)">Añadir</button>
 
-    <button *ngIf="activeListId() !== 'all'" class="px-3 py-1 rounded border hover:bg-white/20 text-sm ml-auto"
+    <button *ngIf="activeListId() !== 'all'" class="px-3 py-1 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/20 text-sm ml-auto"
             (click)="removeSelectedFromCurrentList()">
       Quitar de lista
     </button>
 
-    <button class="px-3 py-1 rounded border bg-red-500/80 hover:bg-red-400 text-sm"
+    <button class="px-3 py-1 rounded border bg-red-500 hover:bg-red-600 dark:bg-red-500/80 dark:hover:bg-red-400 text-white text-sm"
             [ngClass]="{'ml-auto': activeListId() === 'all'}"
             (click)="deletedSelectedVideos()">
       Eliminar
@@ -131,15 +139,15 @@ flex flex-col overflow-hidden
   </div>
 
   <!-- Errores -->
-  <div *ngIf="err" class="flex-none mb-3 p-2 border border-red-400 text-red-200 rounded bg-red-900/30">
+  <div *ngIf="err" class="flex-none mb-3 p-2 border border-red-400 text-red-700 dark:text-red-200 rounded bg-red-50 dark:bg-red-900/30">
     {{ err }}
   </div>
 
 
   <!-- Tabla de videos -->
-  <section class="rounded-lg border flex-1 overflow-hiddenxcb overflow-auto">
+  <section class="rounded-lg border border-gray-400 dark:border-white/10 flex-1 overflow-hiddenxcb overflow-auto">
     <table class="w-full text-sm">
-      <thead class="bg-black/20">
+      <thead class="bg-gray-100 dark:bg-black/20 text-gray-700 dark:text-gray-200">
         <tr>
           <th class="text-left p-2"></th>
           <th class="text-left p-2 w-20"></th>
@@ -149,11 +157,11 @@ flex flex-col overflow-hidden
         </tr>
       </thead>
       <tbody cdkDropList [cdkDropListDisabled]="!reorderMode" (cdkDropListDropped)="drop($event)">
-        <tr *ngIf="loading"><td colspan="5" class="p-3 text-center text-gray-400">Cargando...</td></tr>
-        <tr *ngIf="!loading && displayedVideos.length === 0"><td colspan="5" class="p-3 text-center text-gray-400">No hay videos</td></tr>
+        <tr *ngIf="loading"><td colspan="5" class="p-3 text-center text-gray-500 dark:text-gray-400">Cargando...</td></tr>
+        <tr *ngIf="!loading && displayedVideos.length === 0"><td colspan="5" class="p-3 text-center text-gray-500 dark:text-gray-400">No hay videos</td></tr>
 
-        <tr *ngFor="let v of displayedVideos" class="border-t border-white/10" cdkDrag>
-          <td class="p-2 w-10 text-center" cdkDragHandle [ngClass]="{'cursor-move text-gray-400 hover:text-white': reorderMode}">
+        <tr *ngFor="let v of displayedVideos" class="border-t border-gray-300 dark:border-white/10 text-gray-800 dark:text-gray-100" cdkDrag>
+          <td class="p-2 w-10 text-center" cdkDragHandle [ngClass]="{'cursor-move text-gray-400 hover:text-gray-700 dark:hover:text-white': reorderMode}">
             <input *ngIf="!reorderMode" width="20" height="20" type="checkbox" [checked]="!!selectedMap[v.videoPath]" (change)="toggle(v.videoPath)" />
             <svg *ngIf="reorderMode" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -162,7 +170,7 @@ flex flex-col overflow-hidden
             </svg>
           </td>
           <td class="p-2">
-            <img class="w-20 h-16 object-cover bg-black/10 rounded"
+            <img class="w-20 h-16 object-cover bg-gray-200 dark:bg-black/10 rounded"
                 [src]="v.thumbnailUrl" alt="Thumbnail" />
           </td>
           <td class="p-2 break-all">{{ getName(v.videoPath) }}</td>
@@ -171,11 +179,11 @@ flex flex-col overflow-hidden
           </td>
           <td class="p-2">
             <div class="flex flex-col gap-2">
-              <button class="px-2 py-1 border rounded disabled:opacity-50"
+              <button class="px-2 py-1 border border-gray-500 dark:border-white/20 rounded text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
                       (click)="playSingle(v)" [disabled]="!botId || busyRow === v.videoPath">
                 {{ busyRow === v.videoPath ? '...' : 'Reproducir' }}
               </button>
-              <a class="px-2 py-1 border text-center rounded hover:bg-white/10" [href]="v.videoUrl" target="_blank" rel="noreferrer">
+              <a class="px-2 py-1 border border-gray-500 dark:border-white/20 text-center rounded text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10" [href]="v.videoUrl" target="_blank" rel="noreferrer">
                 Abrir URL
               </a>
             </div>
@@ -185,8 +193,8 @@ flex flex-col overflow-hidden
     </table>
   </section>
 
-  <p class="flex-none mt-3 text-xs text-gray-400">
-    Tip: “Duración” se calcula con metadatos del video sin descargar el archivo completo.
+  <p class="flex-none mt-3 text-xs text-gray-500 dark:text-gray-400">
+    Tip: "Duración" se calcula con metadatos del video sin descargar el archivo completo.
   </p>
 </main>
 

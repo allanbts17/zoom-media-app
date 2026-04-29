@@ -453,7 +453,9 @@ export class App implements OnInit {
     this.loadingservice.hide();
   }
 
-  toogleContainer() {
-    document.getElementById('meetingsContainer')?.classList.toggle('collapsed');
+  isMeetingsCollapsed = signal<boolean>(false);
+
+  toggleMeetings() {
+    this.isMeetingsCollapsed.update(v => !v);
   }
 }
