@@ -84,10 +84,23 @@ flex flex-col overflow-hidden
       <option *ngFor="let list of videoLists" [value]="list.id">{{ list.name }}</option>
     </select>
 
-    <button class="px-3 py-2 rounded border hover:bg-white/10 ml-auto"
-            (click)="toggleReorder()" [ngClass]="{'bg-blue-600 hover:bg-blue-500': reorderMode}">
-      {{ reorderMode ? 'Guardar orden' : 'Reordenar' }}
+    <button *ngIf="activeListId() !== 'all'" 
+            class="px-2 py-2 rounded text-red-400 hover:text-red-300 hover:bg-white/5"
+            (click)="deleteCurrentList()"
+            title="Borrar lista actual">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
     </button>
+
+    <div class="ml-auto flex gap-2">
+      <button *ngIf="reorderMode" class="px-3 py-2 rounded border hover:bg-white/10"
+              (click)="cancelReorder()">
+        Cancelar
+      </button>
+      <button class="px-3 py-2 rounded border hover:bg-white/10"
+              (click)="toggleReorder()" [ngClass]="{'bg-blue-600 hover:bg-blue-500': reorderMode}">
+        {{ reorderMode ? 'Guardar orden' : 'Reordenar' }}
+      </button>
+    </div>
   </div>
 
   <!-- Barra de acciones de selección -->

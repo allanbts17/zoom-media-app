@@ -40,6 +40,7 @@ export class App implements OnInit {
   activeListId = signal<string>('all');
   reorderMode = false;
   globalVideoOrder: string[] = [];
+  originalOrderBackup: string[] = [];
   newListTitle = '';
 
   err = '';
@@ -159,8 +160,24 @@ export class App implements OnInit {
         this.reorderMode = false;
       }
     } else {
+      if (this.activeListId() === 'all') {
+        this.originalOrderBackup = [...this.globalVideoOrder];
+      } else {
+        const activeList = this.videoLists.find(l => l.id === this.activeListId());
+        this.originalOrderBackup = activeList ? [...activeList.videoPaths] : [];
+      }
       this.reorderMode = true;
     }
+  }
+
+  cancelReorder() {
+    if (this.activeListId() === 'all') {
+      this.globalVideoOrder = [...this.originalOrderBackup];
+    } else {
+      const activeList = this.videoLists.find(l => l.id === this.activeListId());
+      if (activeList) activeList.videoPaths = [...this.originalOrderBackup];
+    }
+    this.reorderMode = false;
   }
 
   async createNewList() {
@@ -224,6 +241,23 @@ export class App implements OnInit {
       this.selectedMap = {};
     } catch (e: any) {
       this.err = e?.message ?? 'Error removiendo de la lista';
+    } finally {
+      this.loadingservice.hide();
+    }
+  }
+
+  async deleteCurrentList() {
+    if (this.activeListId() === 'all') return;
+    
+    let confirm = await this.confirmService.confirm('Confirmación', '¿Seguro que quieres borrar la lista actual?');
+    if (!confirm) return;
+
+    this.loadingservice.show();
+    try {
+      await this.videoListsService.deleteList(this.activeListId());
+      this.activeListId.set('all');
+    } catch (e: any) {
+      this.err = e?.message ?? 'Error borrando la lista';
     } finally {
       this.loadingservice.hide();
     }
