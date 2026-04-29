@@ -9,8 +9,9 @@ import { LoadingService } from './shared/services/loading.service';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, CdkDragHandle } from '@angular/cdk/drag-drop';
 import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
 import { ModalService } from './shared/services/modal.service';
-import { Meeting, VideoItem } from './shared/interfaces';
+import { Meeting, VideoItem, VideoList, Config } from './shared/interfaces';
 import { DurationPipe } from './shared/pipes/duration-pipe';
+import { VideoListsService } from './shared/services/video-lists.service';
 
 @Component({
   selector: 'app-root',
@@ -34,6 +35,13 @@ export class App implements OnInit {
   busyRow = '';
   botId = '';
 
+  // Lists and Ordering
+  videoLists: VideoList[] = [];
+  activeListId = signal<string>('all');
+  reorderMode = false;
+  globalVideoOrder: string[] = [];
+  newListTitle = '';
+
   err = '';
   isUploading = false;
 
@@ -42,7 +50,8 @@ export class App implements OnInit {
     private meetingsService: MeetingsService,
     public zoom: ZoomService,
     private loadingservice: LoadingService,
-    public confirmService: ModalService
+    public confirmService: ModalService,
+    private videoListsService: VideoListsService
   ) {
 
     backend.videos$.subscribe({
@@ -54,6 +63,7 @@ export class App implements OnInit {
         this.botId = config?.botId ?? '';
         this.busyRow = config?.busyRow ?? '';
         this.playing = config?.playing ?? false;
+        this.globalVideoOrder = config?.globalVideoOrder ?? [];
         console.log('Config loaded:', config);
       },
       error: (e) => { this.err = e?.message ?? 'Error cargando configuración'; }
@@ -71,11 +81,152 @@ export class App implements OnInit {
       },
       error: (e) => (this.err = e?.message ?? 'Error leyendo reuniones'),
     });
+
+    this.videoListsService.lists$.subscribe({
+      next: (lists) => this.videoLists = lists,
+      error: (e) => this.err = e?.message ?? 'Error leyendo listas'
+    });
   }
 
 
+  get displayedVideos(): VideoItem[] {
+    let list: VideoItem[] = [];
+    let order: string[] = [];
+    
+    if (this.activeListId() === 'all') {
+      list = [...this.videos];
+      order = this.globalVideoOrder;
+    } else {
+      const activeList = this.videoLists.find(l => l.id === this.activeListId());
+      if (activeList) {
+        order = activeList.videoPaths;
+        list = this.videos.filter(v => order.includes(v.videoPath));
+      } else {
+        list = [...this.videos];
+      }
+    }
+
+    if (order && order.length > 0) {
+      list.sort((a, b) => {
+        const indexA = order.indexOf(a.videoPath);
+        const indexB = order.indexOf(b.videoPath);
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
+
+    return list;
+  }
+
   drop(event: CdkDragDrop<VideoItem[]>) {
-    moveItemInArray(this.videos, event.previousIndex, event.currentIndex);
+    if (!this.reorderMode) return;
+    const newDisplayed = [...this.displayedVideos];
+    moveItemInArray(newDisplayed, event.previousIndex, event.currentIndex);
+    
+    const newOrder = newDisplayed.map(v => v.videoPath);
+    if (this.activeListId() === 'all') {
+      this.globalVideoOrder = newOrder;
+    } else {
+      const activeList = this.videoLists.find(l => l.id === this.activeListId());
+      if (activeList) activeList.videoPaths = newOrder;
+    }
+  }
+
+  async toggleReorder() {
+    if (this.reorderMode) {
+      // Guardar el orden
+      this.loadingservice.show();
+      try {
+        if (this.activeListId() === 'all') {
+          await this.backend.setConfig({
+            botId: this.botId,
+            busyRow: this.busyRow,
+            playing: this.playing,
+            globalVideoOrder: this.globalVideoOrder
+          });
+        } else {
+          const activeList = this.videoLists.find(l => l.id === this.activeListId());
+          if (activeList && activeList.id) {
+            await this.videoListsService.updateList(activeList.id, { videoPaths: activeList.videoPaths });
+          }
+        }
+      } catch (e: any) {
+        this.err = e?.message ?? 'Error guardando el orden';
+      } finally {
+        this.loadingservice.hide();
+        this.reorderMode = false;
+      }
+    } else {
+      this.reorderMode = true;
+    }
+  }
+
+  async createNewList() {
+    const queue = this.selectedList();
+    if (queue.length === 0) return;
+    if (!this.newListTitle.trim()) {
+      this.err = 'Ingresa un nombre para la nueva lista';
+      return;
+    }
+    this.err = '';
+    this.loadingservice.show();
+    try {
+      const paths = queue.map(v => v.videoPath);
+      await this.videoListsService.addList(this.newListTitle, paths);
+      this.newListTitle = '';
+      this.selectedMap = {}; // clear selection
+    } catch (e: any) {
+      this.err = e?.message ?? 'Error creando lista';
+    } finally {
+      this.loadingservice.hide();
+    }
+  }
+
+  async addSelectedToList(listId: string) {
+    const queue = this.selectedList();
+    if (queue.length === 0 || !listId) return;
+    
+    const targetList = this.videoLists.find(l => l.id === listId);
+    if (!targetList || !targetList.id) return;
+
+    this.loadingservice.show();
+    try {
+      const newPaths = [...targetList.videoPaths];
+      queue.forEach(v => {
+        if (!newPaths.includes(v.videoPath)) {
+          newPaths.push(v.videoPath);
+        }
+      });
+      await this.videoListsService.updateList(targetList.id, { videoPaths: newPaths });
+      this.selectedMap = {}; // clear selection
+    } catch (e: any) {
+      this.err = e?.message ?? 'Error agregando a la lista';
+    } finally {
+      this.loadingservice.hide();
+    }
+  }
+
+  async removeSelectedFromCurrentList() {
+    if (this.activeListId() === 'all') return;
+    const queue = this.selectedList();
+    if (queue.length === 0) return;
+
+    const activeList = this.videoLists.find(l => l.id === this.activeListId());
+    if (!activeList || !activeList.id) return;
+
+    this.loadingservice.show();
+    try {
+      const pathsToRemove = queue.map(v => v.videoPath);
+      const newPaths = activeList.videoPaths.filter(p => !pathsToRemove.includes(p));
+      await this.videoListsService.updateList(activeList.id, { videoPaths: newPaths });
+      this.selectedMap = {};
+    } catch (e: any) {
+      this.err = e?.message ?? 'Error removiendo de la lista';
+    } finally {
+      this.loadingservice.hide();
+    }
   }
 
   updateConfig() {
@@ -162,6 +313,7 @@ export class App implements OnInit {
     return this.videos.filter(v => this.selectedMap[v.videoPath]);
   }
 
+  /*
   async playQueue() {
     this.err = '';
     if (!this.botId) { this.err = 'Crea el bot primero'; return; }
@@ -201,6 +353,7 @@ export class App implements OnInit {
       this.updateConfig()
     }
   }
+  */
 
   async shareApp() {
     await this.zoom.shareApp();

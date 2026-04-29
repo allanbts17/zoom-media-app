@@ -61,18 +61,58 @@ flex flex-col overflow-hidden
   </section>
 
   <!-- Acciones globales -->
-  <div class="flex-none flex gap-2 mb-3">
+  <div class="flex-none flex flex-wrap gap-2 mb-3 items-center">
+    <!--
     <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
             (click)="playQueue()"
             [disabled]="!botId || playing || selectedList().length === 0">
       Reproducir en cola
     </button>
+    -->
     <button class="px-3 py-2 rounded border hover:bg-white/10 disabled:opacity-50"
             (click)="stopNow()" [disabled]="!botId">
       Detener
     </button>
-    <button class="px-3 py-2 rounded border bg-red-500 hover:bg-red-400 disabled:opacity-50"
-            (click)="deletedSelectedVideos()" [disabled]="selectedList().length === 0">
+    
+    <div class="h-6 w-px bg-white/20 mx-2"></div>
+    
+    <label class="text-sm">Lista:</label>
+    <select class="border rounded px-3 py-2 bg-transparent"
+            [ngModel]="activeListId()"
+            (ngModelChange)="activeListId.set($event)">
+      <option value="all">Todos los videos</option>
+      <option *ngFor="let list of videoLists" [value]="list.id">{{ list.name }}</option>
+    </select>
+
+    <button class="px-3 py-2 rounded border hover:bg-white/10 ml-auto"
+            (click)="toggleReorder()" [ngClass]="{'bg-blue-600 hover:bg-blue-500': reorderMode}">
+      {{ reorderMode ? 'Guardar orden' : 'Reordenar' }}
+    </button>
+  </div>
+
+  <!-- Barra de acciones de selección -->
+  <div *ngIf="selectedList().length > 0 && !reorderMode" class="flex-none flex flex-wrap gap-2 mb-3 p-3 bg-white/10 rounded-lg items-center border border-white/20">
+    <span class="text-sm font-semibold">{{ selectedList().length }} seleccionados</span>
+    
+    <input class="border rounded px-2 py-1 bg-transparent ml-2" placeholder="Nueva lista..." [(ngModel)]="newListTitle" />
+    <button class="px-3 py-1 rounded border hover:bg-white/20 text-sm" (click)="createNewList()">Crear lista</button>
+    
+    <div class="h-5 w-px bg-white/20 mx-1"></div>
+    
+    <select #addToListSelect class="border rounded px-2 py-1 bg-transparent text-sm max-w-[150px]">
+      <option value="">-- Añadir a lista --</option>
+      <option *ngFor="let list of videoLists" [value]="list.id">{{ list.name }}</option>
+    </select>
+    <button class="px-3 py-1 rounded border hover:bg-white/20 text-sm" (click)="addSelectedToList(addToListSelect.value)">Añadir</button>
+
+    <button *ngIf="activeListId() !== 'all'" class="px-3 py-1 rounded border hover:bg-white/20 text-sm ml-auto"
+            (click)="removeSelectedFromCurrentList()">
+      Quitar de lista
+    </button>
+
+    <button class="px-3 py-1 rounded border bg-red-500/80 hover:bg-red-400 text-sm"
+            [ngClass]="{'ml-auto': activeListId() === 'all'}"
+            (click)="deletedSelectedVideos()">
       Eliminar
     </button>
   </div>
@@ -95,13 +135,18 @@ flex flex-col overflow-hidden
           <th class="text-left p-2">Acciones</th>
         </tr>
       </thead>
-      <tbody cdkDropList (cdkDropListDropped)="drop($event)">
+      <tbody cdkDropList [cdkDropListDisabled]="!reorderMode" (cdkDropListDropped)="drop($event)">
         <tr *ngIf="loading"><td colspan="5" class="p-3 text-center text-gray-400">Cargando...</td></tr>
-        <tr *ngIf="!loading && videos.length === 0"><td colspan="5" class="p-3 text-center text-gray-400">No hay videos .mp4</td></tr>
+        <tr *ngIf="!loading && displayedVideos.length === 0"><td colspan="5" class="p-3 text-center text-gray-400">No hay videos</td></tr>
 
-        <tr *ngFor="let v of videos" class="border-t border-white/10" cdkDrag>
-          <td class="p-2" cdkDragHandle>
-            <input width="20" height="20" type="checkbox" [checked]="!!selectedMap[v.videoPath]" (change)="toggle(v.videoPath)" />
+        <tr *ngFor="let v of displayedVideos" class="border-t border-white/10" cdkDrag>
+          <td class="p-2 w-10 text-center" cdkDragHandle [ngClass]="{'cursor-move text-gray-400 hover:text-white': reorderMode}">
+            <input *ngIf="!reorderMode" width="20" height="20" type="checkbox" [checked]="!!selectedMap[v.videoPath]" (change)="toggle(v.videoPath)" />
+            <svg *ngIf="reorderMode" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
           </td>
           <td class="p-2">
             <img class="w-20 h-16 object-cover bg-black/10 rounded"
