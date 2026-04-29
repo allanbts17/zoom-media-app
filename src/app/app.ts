@@ -407,18 +407,21 @@ export class App implements OnInit {
 
   async fileChangeListener(event: any) {
     this.err = '';
-    const file: File = event.target.files[0];
-    if (!file) return;
+    const files: FileList = event.target.files;
+    if (!files || files.length === 0) return;
     this.isUploading = true;
-    const formData = new FormData();
-    formData.append('video', file);
     try {
-      console.log('Uploading file:', file.name, file.size, file.type);
-      await this.backend.uploadVideo(file);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        console.log(`Uploading file ${i + 1}/${files.length}:`, file.name, file.size, file.type);
+        await this.backend.uploadVideo(file);
+      }
     } catch (e: any) {
       console.error('Upload error:', e);
+      this.err = e?.message ?? 'Upload error';
     } finally {
       this.isUploading = false;
+      event.target.value = '';
     }
   }
 

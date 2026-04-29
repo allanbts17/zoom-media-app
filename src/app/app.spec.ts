@@ -92,4 +92,26 @@ describe('App', () => {
     expect(displayed[0].videoPath).toBe('v2');
     expect(displayed[1].videoPath).toBe('v1');
   });
+
+  it('should upload multiple files via fileChangeListener', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    backendMock.uploadVideo = jasmine.createSpy('uploadVideo').and.returnValue(Promise.resolve());
+
+    const mockEvent = {
+      target: {
+        files: [
+          new File([''], 'test1.mp4', { type: 'video/mp4' }),
+          new File([''], 'test2.mp4', { type: 'video/mp4' })
+        ],
+        value: 'some/path'
+      }
+    };
+
+    await app.fileChangeListener(mockEvent);
+
+    expect(app.isUploading).toBeFalse();
+    expect(backendMock.uploadVideo).toHaveBeenCalledTimes(2);
+    expect(mockEvent.target.value).toBe('');
+  });
 });
