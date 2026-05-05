@@ -26,3 +26,11 @@ export interface Config {
   playing: boolean;
   globalVideoOrder?: string[];
 }
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: number;
+  modifiedTime?: string;
+}

@@ -20,6 +20,13 @@
     "logLevel": "debug",
     "pathRewrite": { "^/upload": "/api/upload" }
   },
+  "/drive": {
+    "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "pathRewrite": { "^/drive": "/api/drive" }
+  },
   "/health": {
     "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
     "secure": true,

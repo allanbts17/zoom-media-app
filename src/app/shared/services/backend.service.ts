@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { LoadingService } from './loading.service';
 import { Firestore, CollectionReference, collection, collectionData, setDoc, doc, docData, DocumentData } from '@angular/fire/firestore';
 import { Observable, Subscription } from 'rxjs';
-import { Config, VideoItem } from '../interfaces';
+import { Config, VideoItem, DriveFile } from '../interfaces';
 
 @Injectable({
   providedIn: 'root',
@@ -76,5 +76,13 @@ export class BackendService {
     throw new Error(`Fallo subiendo a GCS: ${put.status} ${txt}`);
   }
 }
+
+  listDriveFiles() {
+    return this.http.get<{ files: DriveFile[] }>('/drive/files');
+  }
+
+  importDriveFile(fileId: string, fileName: string) {
+    return this.http.post<{ gcsPath: string }>('/drive/import', { fileId, fileName });
+  }
 
 }

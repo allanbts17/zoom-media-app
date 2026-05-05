@@ -13,6 +13,20 @@
     "logLevel": "debug",
     "pathRewrite": { "^/recall": "/api/recall" }
   },
+  "/upload": {
+    "target": "http://127.0.0.1:5001/zoom-app-dev/us-central1",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "pathRewrite": { "^/upload": "/api/upload" }
+  },
+  "/drive": {
+    "target": "http://127.0.0.1:5001/zoom-app-dev/us-central1",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "pathRewrite": { "^/drive": "/api/drive" }
+  },
   "/health": {
     "target": "http://127.0.0.1:5001/zoom-app-dev/us-central1",
     "secure": true,

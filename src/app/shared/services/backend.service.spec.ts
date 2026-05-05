@@ -79,4 +79,29 @@ describe('BackendService', () => {
     expect(req.request.method).toEqual('DELETE');
     req.flush({});
   });
+
+  // ── Google Drive tests ────────────────────────────────────────────────────
+
+  it('should make GET request for listDriveFiles', () => {
+    const mockFiles = [
+      { id: 'file1', name: 'video.mp4', mimeType: 'video/mp4', size: 1024 },
+    ];
+    service.listDriveFiles().subscribe((result) => {
+      expect(result.files.length).toBe(1);
+      expect(result.files[0].id).toBe('file1');
+    });
+    const req = httpTestingController.expectOne('/drive/files');
+    expect(req.request.method).toEqual('GET');
+    req.flush({ files: mockFiles });
+  });
+
+  it('should make POST request for importDriveFile', () => {
+    service.importDriveFile('file1', 'video.mp4').subscribe((result) => {
+      expect(result.gcsPath).toBe('videos/video.mp4');
+    });
+    const req = httpTestingController.expectOne('/drive/import');
+    expect(req.request.method).toEqual('POST');
+    expect(req.request.body).toEqual({ fileId: 'file1', fileName: 'video.mp4' });
+    req.flush({ gcsPath: 'videos/video.mp4' });
+  });
 });

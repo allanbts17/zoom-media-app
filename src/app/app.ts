@@ -9,7 +9,7 @@ import { LoadingService } from './shared/services/loading.service';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, CdkDragHandle } from '@angular/cdk/drag-drop';
 import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
 import { ModalService } from './shared/services/modal.service';
-import { Meeting, VideoItem, VideoList, Config } from './shared/interfaces';
+import { Meeting, VideoItem, VideoList, Config, DriveFile } from './shared/interfaces';
 import { DurationPipe } from './shared/pipes/duration-pipe';
 import { VideoListsService } from './shared/services/video-lists.service';
 
@@ -46,6 +46,12 @@ export class App implements OnInit {
 
   err = '';
   isUploading = false;
+
+  // Google Drive
+  driveFiles: DriveFile[] = [];
+  driveLoading = false;
+  driveError = '';
+  driveImportingId = '';
 
   constructor(
     private backend: BackendService,
@@ -466,5 +472,42 @@ export class App implements OnInit {
 
   toggleMeetings() {
     this.isMeetingsCollapsed.update(v => !v);
+  }
+
+  // ── Google Drive ──────────────────────────────────────────────────────────
+
+  async loadDriveFiles() {
+    this.driveLoading = true;
+    this.driveError = '';
+    try {
+      const result = await this.backend.listDriveFiles().toPromise();
+      this.driveFiles = result?.files ?? [];
+    } catch (e: any) {
+      this.driveError = e?.message ?? 'Error cargando archivos de Drive';
+    } finally {
+      this.driveLoading = false;
+    }
+  }
+
+  async importDriveFile(file: DriveFile) {
+    if (this.driveImportingId) return; // ya hay una importación en curso
+    this.driveImportingId = file.id;
+    this.driveError = '';
+    this.loadingservice.show();
+    try {
+      await this.backend.importDriveFile(file.id, file.name).toPromise();
+    } catch (e: any) {
+      this.driveError = e?.message ?? 'Error importando archivo';
+    } finally {
+      this.driveImportingId = '';
+      this.loadingservice.hide();
+    }
+  }
+
+  formatBytes(bytes?: number): string {
+    if (!bytes) return '—';
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   }
 }
