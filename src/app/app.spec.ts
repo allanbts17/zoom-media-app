@@ -168,4 +168,39 @@ describe('App', () => {
     expect(app.selectedMeetingId()).toBe('meeting-first');
     expect(localStorage.setItem).toHaveBeenCalledWith('selectedMeetingId', 'meeting-first');
   });
+
+  it('should filter drive files based on driveSearchQuery', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    app.driveFiles = [
+      { id: '1', name: '504 Himno 1', mimeType: 'video/mp4', size: 100 },
+      { id: '2', name: '521 Himno 2', mimeType: 'video/mp4', size: 200 },
+      { id: '3', name: 'Alabanza', mimeType: 'video/mp4', size: 300 }
+    ];
+    
+    app.driveSearchQuery.set('504');
+    expect(app.filteredDriveFiles.length).toBe(1);
+    expect(app.filteredDriveFiles[0].name).toBe('504 Himno 1');
+
+    app.driveSearchQuery.set('himno');
+    expect(app.filteredDriveFiles.length).toBe(2);
+
+    app.driveSearchQuery.set('');
+    expect(app.filteredDriveFiles.length).toBe(3);
+  });
+
+  it('should toggle drive expansion and load files if not loaded', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    backendMock.listDriveFiles = jasmine.createSpy('listDriveFiles').and.returnValue(of({ files: [] }));
+    
+    app.isDriveExpanded.set(false);
+    app.toggleDrive();
+    
+    expect(app.isDriveExpanded()).toBeTrue();
+    expect(backendMock.listDriveFiles).toHaveBeenCalled();
+    
+    app.toggleDrive();
+    expect(app.isDriveExpanded()).toBeFalse();
+  });
 });

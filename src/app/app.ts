@@ -52,6 +52,8 @@ export class App implements OnInit {
   driveLoading = false;
   driveError = '';
   driveImportingId = '';
+  driveSearchQuery = signal('');
+  isDriveExpanded = signal(false);
 
   constructor(
     private backend: BackendService,
@@ -128,6 +130,12 @@ export class App implements OnInit {
     }
 
     return list;
+  }
+
+  get filteredDriveFiles(): DriveFile[] {
+    const query = this.driveSearchQuery().toLowerCase().trim();
+    if (!query) return this.driveFiles;
+    return this.driveFiles.filter(f => f.name.toLowerCase().includes(query));
   }
 
   drop(event: CdkDragDrop<VideoItem[]>) {
@@ -476,7 +484,10 @@ export class App implements OnInit {
 
   // ── Google Drive ──────────────────────────────────────────────────────────
 
-  async loadDriveFiles() {
+  async loadDriveFiles(expand: boolean = true) {
+    if (expand) this.isDriveExpanded.set(true);
+    if (this.driveFiles.length > 0 && !expand) return; // already loaded and just toggling
+
     this.driveLoading = true;
     this.driveError = '';
     try {
@@ -486,6 +497,14 @@ export class App implements OnInit {
       this.driveError = e?.message ?? 'Error cargando archivos de Drive';
     } finally {
       this.driveLoading = false;
+    }
+  }
+
+  toggleDrive() {
+    if (!this.isDriveExpanded()) {
+      this.loadDriveFiles(true);
+    } else {
+      this.isDriveExpanded.set(false);
     }
   }
 
