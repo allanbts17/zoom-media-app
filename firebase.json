@@ -4,6 +4,7 @@
     "public": "dist/zoom-media-angular/browser",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      { "source": "/zoom-bot/**", "function": { "functionId": "api", "region": "us-central1" } },
       { "source": "/videos",    "function": { "functionId": "api", "region": "us-central1" } },
       { "source": "/videos/**", "function": { "functionId": "api", "region": "us-central1" } },
       { "source": "/recall",    "function": { "functionId": "api", "region": "us-central1" } },

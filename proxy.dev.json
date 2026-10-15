@@ -1,4 +1,11 @@
 {
+  "/zoom-bot/**": {
+    "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": { "^/zoom-bot": "/api/zoom-bot" }
+  },
+
   "/videos": {
     "target": "https://us-central1-zoom-app-dev.cloudfunctions.net",
     "secure": true,

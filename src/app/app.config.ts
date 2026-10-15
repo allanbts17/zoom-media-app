@@ -4,6 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideFirestore, getFirestore } from '@angular/fire/firestore';
+import { provideAuth, getAuth } from '@angular/fire/auth';
 import { environment } from './environments/environment';
 import { initializeFirestore } from 'firebase/firestore';
 
@@ -17,6 +18,7 @@ export const appConfig: ApplicationConfig = {
       firebaseApp = initializeApp(environment.firebase)
       return firebaseApp;
     }),
+    provideAuth(() => getAuth()),
     provideFirestore(() => {
       return initializeFirestore(firebaseApp, {
         ignoreUndefinedProperties: true,
