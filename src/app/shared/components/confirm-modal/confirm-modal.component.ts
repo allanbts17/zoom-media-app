@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ModalService } from '../../services/modal.service';
-import { ModalData } from '../../../interfaces';
+import { ModalData } from '../../interfaces';
 import { CommonModule } from '@angular/common';
 
 @Component({

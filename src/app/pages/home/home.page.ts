@@ -12,6 +12,7 @@ import { GlobalActionsLayout } from '../../layout/global-actions/global-actions.
 import { SelectionBarLayout } from '../../layout/selection-bar/selection-bar.layout';
 import { VideosTableLayout } from '../../layout/videos-table/videos-table.layout';
 import { DriveImportLayout } from '../../layout/drive-import/drive-import.layout';
+import { ZoomBotService } from '../../shared/services/zoom-bot.service';
 
 @Component({
   selector: 'app-home',
@@ -29,6 +30,7 @@ export class HomePage implements OnInit {
 
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  //private readonly zoom = inject(ZoomBotService);
 
   constructor() {
     effect(() => {
@@ -47,6 +49,8 @@ export class HomePage implements OnInit {
         this.state.busyRow = config?.busyRow ?? '';
         this.state.playing = config?.playing ?? false;
         this.state.globalVideoOrder = config?.globalVideoOrder ?? [];
+        this.state.botMaxSessionSeconds = config?.botMaxSessionSeconds as number;
+        this.state.botWaitingRoomTimeoutSeconds = config?.botWaitingRoomTimeoutSeconds as number;
       },
       error: error => this.state.err = error?.message ?? 'Error cargando configuración',
     });

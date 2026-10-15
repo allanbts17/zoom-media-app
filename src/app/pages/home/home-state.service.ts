@@ -1,11 +1,12 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { BackendService } from '../../shared/services/backend.service';
-import { VideoItem, VideoList } from '../../interfaces';
+import { VideoItem, VideoList } from '../../shared/interfaces';
 
 /** Only state used by multiple home layouts; one instance per HomePage. */
 @Injectable()
 export class HomeStateService {
   private readonly backend = inject(BackendService);
+
 
   loading = true;
   videos: VideoItem[] = [];
@@ -19,6 +20,8 @@ export class HomeStateService {
   globalVideoOrder: string[] = [];
   err = '';
   driveSearchQuery = signal('');
+  botMaxSessionSeconds!: number;
+  botWaitingRoomTimeoutSeconds!: number;
 
   /** Persist playback configuration shared by meeting and video controls. */
   updateConfig() {

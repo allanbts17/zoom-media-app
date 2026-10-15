@@ -6,7 +6,7 @@ import { defer, Observable, switchMap } from 'rxjs';
 import {
   ZoomBot, ZoomBotCapacity, ZoomBotEventQuery, ZoomBotEvents, ZoomBotJoinRequest, ZoomBotList,
   ZoomBotListQuery, ZoomBotMedia, ZoomBotOperation, ZoomBotReadiness, ZoomBotTicket,
-} from '../../interfaces';
+} from '../interfaces';
 
 /** Client for our Express backend, which authenticates onward to Cloud Run. */
 @Injectable({ providedIn: 'root' })

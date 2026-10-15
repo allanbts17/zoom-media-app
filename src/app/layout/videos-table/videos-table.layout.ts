@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CdkDrag, CdkDropList, CdkDragHandle, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HomeStateService } from '../../pages/home/home-state.service';
 import { BackendService } from '../../shared/services/backend.service';
-import { VideoItem } from '../../interfaces';
+import { VideoItem } from '../../shared/interfaces';
 import { DurationPipe } from '../../shared/pipes/duration-pipe';
 
 /** Videos table with selection, drag & drop reordering and per-row playback. */

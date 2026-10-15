@@ -3,4 +3,6 @@ export interface Config {
   busyRow?: string;
   playing: boolean;
   globalVideoOrder?: string[];
+  botMaxSessionSeconds?: number;
+  botWaitingRoomTimeoutSeconds?: number;
 }

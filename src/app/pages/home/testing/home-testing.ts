@@ -9,7 +9,7 @@ import { ZoomService } from '../../../shared/services/zoom.service';
 import { VideoListsService } from '../../../shared/services/video-lists.service';
 import { ModalService } from '../../../shared/services/modal.service';
 import { LoadingService } from '../../../shared/services/loading.service';
-import { VideoItem } from '../../../interfaces';
+import { VideoItem } from '../../../shared/interfaces';
 
 /**
  * Test-only helpers shared by the HomeStateService / HomePage / layout specs.

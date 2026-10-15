@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Firestore, collection, addDoc, serverTimestamp, collectionData, query, orderBy, CollectionReference, updateDoc, doc, deleteDoc } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
-import { VideoList } from '../../interfaces';
+import { VideoList } from '../interfaces';
 
 @Injectable({
   providedIn: 'root',

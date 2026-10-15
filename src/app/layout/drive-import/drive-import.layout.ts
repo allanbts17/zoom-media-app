@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HomeStateService } from '../../pages/home/home-state.service';
 import { BackendService } from '../../shared/services/backend.service';
 import { LoadingService } from '../../shared/services/loading.service';
-import { DriveFile } from '../../interfaces';
+import { DriveFile } from '../../shared/interfaces';
 
 /** Collapsible Google Drive file browser with per-file import. */
 @Component({

@@ -6,7 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MeetingsService } from '../../shared/services/meetings.service';
 import { BackendService } from '../../shared/services/backend.service';
 import { ModalService } from '../../shared/services/modal.service';
-import { Meeting } from '../../interfaces';
+import { Meeting } from '../../shared/interfaces';
 
 /** Zoom meeting selection, bot controls, add meeting and add videos (local / Drive search). */
 @Component({
@@ -29,6 +29,8 @@ export class MeetingsPanelLayout implements OnInit {
   selectedMeetingId = signal<string>(localStorage.getItem(MeetingsPanelLayout.MEETING_CACHE_KEY) ?? '');
   newTitle = '';
   newUrl = '';
+  newMeetingNumber = '';
+  newMeetingPassword = '';
   isUploading = false;
   isMeetingsCollapsed = signal<boolean>(false);
 
@@ -77,7 +79,8 @@ export class MeetingsPanelLayout implements OnInit {
     if (!meeting?.url) { this.state.err = 'Selecciona o añade una reunión'; return; }
     try {
       const res = await this.backend.createBot(meeting.url).toPromise();
-      this.state.botId = String(res?.id ?? '');
+      console.log("createBot ZoomBotTicket", res)
+      this.state.botId = String(res?.bot_id ?? '');
       this.state.updateConfig()
     } catch (e: any) {
       this.state.err = e?.message ?? 'No se pudo crear el bot';
@@ -88,7 +91,8 @@ export class MeetingsPanelLayout implements OnInit {
     this.state.err = '';
     if (!this.state.botId) { this.state.err = 'No hay bot para retirar'; return; }
     try {
-      await this.backend.removeBot(this.state.botId).toPromise();
+      const res = await this.backend.removeBot(this.state.botId).toPromise();
+      console.log("removeBot ZoomBotTicket", res)
     } catch (e: any) {
       this.state.err = e?.message ?? 'No se pudo retirar el bot';
     } finally {

@@ -105,17 +105,25 @@
             class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/10"
             (click)="newMeetingDialog.close()">Cerrar</button>
   </header>
-  <form class="flex flex-col gap-3" (ngSubmit)="addMeeting(newMeetingDialog)">
+  <form #newMeetingForm="ngForm" class="flex flex-col gap-3" (ngSubmit)="newMeetingForm.valid && addMeeting(newMeetingDialog)">
     <label class="text-sm" for="new-meeting-title-input">Título (opcional)</label>
     <input id="new-meeting-title-input" name="title" autofocus
            class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 w-full bg-white dark:bg-neutral-800"
            placeholder="Título (opcional)" [(ngModel)]="newTitle" />
-    <label class="text-sm" for="new-meeting-url">URL de reunión de Zoom (requerido)</label>
-    <input id="new-meeting-url" name="url" type="url" required
+    <label class="text-sm" for="new-meeting-number">Número de reunión (requerido)</label>
+    <input id="new-meeting-number" name="meetingNumber" type="text" inputmode="numeric" required
+           pattern="[0-9]{9,11}" minlength="9" maxlength="11" aria-describedby="new-meeting-number-help"
            class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 w-full bg-white dark:bg-neutral-800"
-           placeholder="Zoom meeting URL (requerido)" [(ngModel)]="newUrl" />
+           placeholder="88159203917" [(ngModel)]="newMeetingNumber" />
+    <p id="new-meeting-number-help" class="text-xs text-gray-500 dark:text-gray-400">Entre 9 y 11 dígitos, sin espacios ni guiones.</p>
+    <label class="text-sm" for="new-meeting-password">Contraseña de la reunión</label>
+    <input id="new-meeting-password" name="meetingPassword" type="password" autocomplete="off" maxlength="128"
+           aria-describedby="new-meeting-password-help"
+           class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 w-full bg-white dark:bg-neutral-800"
+           placeholder="Código de acceso" [(ngModel)]="newMeetingPassword" />
+    <p id="new-meeting-password-help" class="text-xs text-gray-500 dark:text-gray-400">Introduce el código original, no el valor pwd del enlace. Déjalo vacío si la reunión no requiere contraseña.</p>
     <p *ngIf="state.err" role="alert" class="text-sm text-red-600 dark:text-red-400">{{ state.err }}</p>
-    <button type="submit"
+    <button type="submit" [disabled]="newMeetingForm.invalid"
             class="self-end px-3 py-2 rounded border border-gray-500 dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/10">Añadir</button>
   </form>
 </dialog>

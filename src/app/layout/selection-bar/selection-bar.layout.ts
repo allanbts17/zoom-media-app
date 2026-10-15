@@ -6,7 +6,7 @@ import { BackendService } from '../../shared/services/backend.service';
 import { LoadingService } from '../../shared/services/loading.service';
 import { ModalService } from '../../shared/services/modal.service';
 import { VideoListsService } from '../../shared/services/video-lists.service';
-import { VideoItem } from '../../interfaces';
+import { VideoItem } from '../../shared/interfaces';
 
 /** Bulk actions over the selected videos (create list, add/remove from list, delete). */
 @Component({
