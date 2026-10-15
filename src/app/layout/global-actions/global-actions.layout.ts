@@ -6,7 +6,6 @@ import { BackendService } from '../../shared/services/backend.service';
 import { LoadingService } from '../../shared/services/loading.service';
 import { ModalService } from '../../shared/services/modal.service';
 import { VideoListsService } from '../../shared/services/video-lists.service';
-import { ZoomService } from '../../shared/services/zoom.service';
 
 /** Stop playback, active list selector/delete and reorder controls. */
 @Component({
@@ -21,7 +20,6 @@ export class GlobalActionsLayout {
   private readonly loadingService = inject(LoadingService);
   private readonly confirmService = inject(ModalService);
   private readonly videoListsService = inject(VideoListsService);
-  private readonly zoom = inject(ZoomService);
 
   originalOrderBackup: string[] = [];
 
@@ -98,9 +96,4 @@ export class GlobalActionsLayout {
       this.state.updateConfig()
     }
   }
-
-  async shareApp() {
-    await this.zoom.shareApp();
-  }
-
 }
