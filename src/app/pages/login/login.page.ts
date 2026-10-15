@@ -1,17 +1,15 @@
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
   selector: 'app-login',
-  imports: [RouterLink],
   templateUrl: './login.page.html',
   styleUrl: './login.page.css',
 })
 export class LoginPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  readonly registration = inject(ActivatedRoute).snapshot.data['registration'] === true;
   readonly busy = signal(false);
   readonly error = signal('');
 

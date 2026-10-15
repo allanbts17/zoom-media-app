@@ -53,23 +53,11 @@ describe('App', () => {
   it('shows login at the root and denies direct home access without a session', async () => {
     mocks.auth.user.set(null);
     const harness = await RouterTestingHarness.create();
-    const page = await harness.navigateByUrl('/', LoginPage);
-    expect(page.registration).toBeFalse();
+    await harness.navigateByUrl('/', LoginPage);
     expect(harness.routeNativeElement?.textContent).toContain('Iniciar sesión');
+    expect(harness.routeNativeElement?.querySelector('a')).toBeNull();
     await harness.navigateByUrl('/home', LoginPage);
     expect(TestBed.inject(Router).url).toBe('/');
-  });
-
-  it('offers Google registration and redirects an authenticated user away from it', async () => {
-    mocks.auth.user.set(null);
-    const harness = await RouterTestingHarness.create();
-    const page = await harness.navigateByUrl('/registro', LoginPage);
-    expect(page.registration).toBeTrue();
-    expect(harness.routeNativeElement?.textContent).toContain('Registrarme con Google');
-    mocks.auth.user.set({uid: 'u1', email: 'allan@example.com'} as User);
-    await harness.navigateByUrl('/', HomePage);
-    await harness.navigateByUrl('/registro', HomePage);
-    expect(TestBed.inject(Router).url).toBe('/home');
   });
 
   it('waits for session restoration before creating home', async () => {
