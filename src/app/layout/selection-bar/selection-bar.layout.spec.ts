@@ -1,22 +1,26 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SelectionBarLayout } from './selection-bar.layout';
-import { HomeStore } from '../../pages/home/home.store';
+import { HomeStateService } from '../../pages/home/home-state.service';
 import { createHomeServiceMocks, makeVideo, provideHomeServiceMocks } from '../../pages/home/testing/home-testing';
 
 describe('SelectionBarLayout', () => {
   let fixture: ComponentFixture<SelectionBarLayout>;
-  let store: HomeStore;
+  let state: HomeStateService;
+  let component: SelectionBarLayout;
+  let mocks: ReturnType<typeof createHomeServiceMocks>;
   let el: HTMLElement;
 
   beforeEach(async () => {
+    mocks = createHomeServiceMocks();
     await TestBed.configureTestingModule({
       imports: [SelectionBarLayout],
-      providers: [HomeStore, ...provideHomeServiceMocks(createHomeServiceMocks())]
+      providers: [HomeStateService, ...provideHomeServiceMocks(mocks)]
     }).compileComponents();
 
-    store = TestBed.inject(HomeStore);
-    store.videos = [makeVideo('v1'), makeVideo('v2')];
+    state = TestBed.inject(HomeStateService);
+    state.videos = [makeVideo('v1'), makeVideo('v2')];
     fixture = TestBed.createComponent(SelectionBarLayout);
+    component = fixture.componentInstance;
     el = fixture.nativeElement;
     fixture.detectChanges();
   });
@@ -25,7 +29,7 @@ describe('SelectionBarLayout', () => {
     Array.from(el.querySelectorAll('button')).find(b => b.textContent?.includes(text)) as HTMLButtonElement | undefined;
 
   const selectVideos = (...paths: string[]) => {
-    paths.forEach(p => store.toggle(p));
+    paths.forEach(p => state.selectedMap[p] = true);
     fixture.detectChanges();
   };
 
@@ -40,28 +44,28 @@ describe('SelectionBarLayout', () => {
 
   it('should be hidden in reorder mode', () => {
     selectVideos('v1');
-    store.reorderMode = true;
+    state.reorderMode = true;
     fixture.detectChanges();
     expect(el.textContent).not.toContain('seleccionados');
   });
 
   it('should create a new list with the typed name', async () => {
     selectVideos('v1');
-    const createSpy = spyOn(store, 'createNewList').and.returnValue(Promise.resolve());
+    const createSpy = spyOn(component, 'createNewList').and.returnValue(Promise.resolve());
     const input = el.querySelector('input[placeholder="Nueva lista..."]') as HTMLInputElement;
 
     input.value = 'Mi lista';
     input.dispatchEvent(new Event('input'));
     buttonByText('Crear lista')!.click();
 
-    expect(store.newListTitle).toBe('Mi lista');
+    expect(component.newListTitle).toBe('Mi lista');
     expect(createSpy).toHaveBeenCalled();
   });
 
   it('should add the selection to the chosen list', () => {
-    store.videoLists = [{ id: 'l1', name: 'Domingo', videoPaths: [] }];
+    state.videoLists = [{ id: 'l1', name: 'Domingo', videoPaths: [] }];
     selectVideos('v1');
-    const addSpy = spyOn(store, 'addSelectedToList').and.returnValue(Promise.resolve());
+    const addSpy = spyOn(component, 'addSelectedToList').and.returnValue(Promise.resolve());
 
     const select = el.querySelector('select') as HTMLSelectElement;
     select.value = 'l1';
@@ -74,9 +78,9 @@ describe('SelectionBarLayout', () => {
     selectVideos('v1');
     expect(buttonByText('Quitar de lista')).toBeUndefined();
 
-    store.activeListId.set('l1');
+    state.activeListId.set('l1');
     fixture.detectChanges();
-    const removeSpy = spyOn(store, 'removeSelectedFromCurrentList').and.returnValue(Promise.resolve());
+    const removeSpy = spyOn(component, 'removeSelectedFromCurrentList').and.returnValue(Promise.resolve());
     buttonByText('Quitar de lista')!.click();
 
     expect(removeSpy).toHaveBeenCalled();
@@ -84,8 +88,9 @@ describe('SelectionBarLayout', () => {
 
   it('should delete the selected videos', () => {
     selectVideos('v1');
-    const deleteSpy = spyOn(store, 'deletedSelectedVideos').and.returnValue(Promise.resolve());
+    const deleteSpy = spyOn(component, 'deletedSelectedVideos').and.returnValue(Promise.resolve());
     buttonByText('Eliminar')!.click();
     expect(deleteSpy).toHaveBeenCalled();
   });
+
 });

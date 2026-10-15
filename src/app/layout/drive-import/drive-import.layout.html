@@ -2,7 +2,7 @@
 <section class="flex-none rounded-lg border border-gray-400 dark:border-white/20 bg-white dark:bg-white/5 mt-4 overflow-hidden">
   <!-- Header -->
   <header class="p-3 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-          (click)="store.toggleDrive()">
+          (click)="toggleDrive()">
     <div class="flex items-center gap-2">
       <svg width="18" height="18" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
         <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
@@ -13,36 +13,36 @@
         <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 52.8h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
       </svg>
       <h2 class="font-medium text-sm text-gray-700 dark:text-gray-200">Importar desde Google Drive</h2>
-      <span *ngIf="store.driveSearchQuery()" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-        Filtrado: "{{ store.driveSearchQuery() }}"
+      <span *ngIf="state.driveSearchQuery()" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+        Filtrado: "{{ state.driveSearchQuery() }}"
       </span>
     </div>
     <div class="flex items-center gap-2">
       <button class="px-3 py-1 text-xs rounded border border-gray-400 dark:border-white/20 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
-              (click)="$event.stopPropagation(); store.loadDriveFiles(true)">
+              (click)="$event.stopPropagation(); loadDriveFiles(true)">
         Actualizar
       </button>
-      <svg class="transition-transform duration-200 text-gray-500 dark:text-gray-400" 
-           [class.rotate-180]="store.isDriveExpanded()"
+      <svg class="transition-transform duration-200 text-gray-500 dark:text-gray-400"
+           [class.rotate-180]="isDriveExpanded()"
            width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
       </svg>
     </div>
   </header>
 
-  <div [class.hidden]="!store.isDriveExpanded()" class="border-t border-gray-400 dark:border-white/10">
+  <div [class.hidden]="!isDriveExpanded()" class="border-t border-gray-400 dark:border-white/10">
     <!-- Error -->
-    <div *ngIf="store.driveError" class="m-3 p-2 border border-red-400 text-red-700 dark:text-red-200 rounded bg-red-50 dark:bg-red-900/30 text-sm">
-      {{ store.driveError }}
+    <div *ngIf="driveError" class="m-3 p-2 border border-red-400 text-red-700 dark:text-red-200 rounded bg-red-50 dark:bg-red-900/30 text-sm">
+      {{ driveError }}
     </div>
 
     <!-- Loading skeleton -->
-    <div *ngIf="store.driveLoading && store.driveFiles.length === 0" class="p-4 space-y-2">
+    <div *ngIf="driveLoading && driveFiles.length === 0" class="p-4 space-y-2">
       <div *ngFor="let _ of [1,2,3,4,5]" class="h-12 bg-gray-100 dark:bg-white/5 rounded animate-pulse"></div>
     </div>
 
     <!-- File list with scroll -->
-    <div *ngIf="store.filteredDriveFiles.length > 0" class="max-h-[400px] overflow-y-auto custom-scrollbar pb-2">
+    <div *ngIf="filteredDriveFiles.length > 0" class="max-h-[400px] overflow-y-auto custom-scrollbar pb-2">
       <table class="w-full text-sm border-collapse">
         <thead class="sticky top-0 bg-gray-50 dark:bg-neutral-900 text-gray-600 dark:text-gray-400 z-10 border-b border-gray-400 dark:border-white/10">
           <tr>
@@ -52,7 +52,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let file of store.filteredDriveFiles"
+          <tr *ngFor="let file of filteredDriveFiles"
               class="border-b border-gray-300 dark:border-white/5 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
             <td class="p-3">
               <div class="flex flex-col">
@@ -66,12 +66,12 @@
             <td class="p-3 text-right">
               <button
                 class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800/50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold transition-all"
-                (click)="store.importDriveFile(file)"
-                [disabled]="!!store.driveImportingId"
+                (click)="importDriveFile(file)"
+                [disabled]="!!driveImportingId"
                 id="import-drive-file-{{ file.id }}">
-                <svg *ngIf="store.driveImportingId !== file.id" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span *ngIf="store.driveImportingId !== file.id">Importar</span>
-                <span *ngIf="store.driveImportingId === file.id" class="flex items-center gap-1">
+                <svg *ngIf="driveImportingId !== file.id" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span *ngIf="driveImportingId !== file.id">Importar</span>
+                <span *ngIf="driveImportingId === file.id" class="flex items-center gap-1">
                   <svg class="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>
                   Importando...
                 </span>
@@ -83,12 +83,12 @@
     </div>
 
     <!-- Empty/No results state -->
-    <div *ngIf="!store.driveLoading && store.filteredDriveFiles.length === 0" class="p-8 text-center border-t border-gray-400 dark:border-white/10">
+    <div *ngIf="!driveLoading && filteredDriveFiles.length === 0" class="p-8 text-center border-t border-gray-400 dark:border-white/10">
       <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 mb-3">
         <svg class="text-gray-400" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       </div>
       <p class="text-sm text-gray-500 dark:text-gray-400">
-        {{ store.driveSearchQuery() ? 'No se encontraron himnos que coincidan con "' + store.driveSearchQuery() + '"' : 'Haz clic en "Actualizar" para cargar los himnos de Drive.' }}
+        {{ state.driveSearchQuery() ? 'No se encontraron himnos que coincidan con "' + state.driveSearchQuery() + '"' : 'Haz clic en "Actualizar" para cargar los himnos de Drive.' }}
       </p>
     </div>
   </div>

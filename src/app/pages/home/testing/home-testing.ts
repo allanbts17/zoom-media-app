@@ -1,4 +1,6 @@
-import { Provider } from '@angular/core';
+import { computed, Provider, signal } from '@angular/core';
+import { User } from 'firebase/auth';
+import { AuthService } from '../../../shared/services/auth.service';
 import { Firestore } from '@angular/fire/firestore';
 import { of } from 'rxjs';
 import { BackendService } from '../../../shared/services/backend.service';
@@ -10,10 +12,11 @@ import { LoadingService } from '../../../shared/services/loading.service';
 import { VideoItem } from '../../../interfaces';
 
 /**
- * Test-only helpers shared by the HomeStore / HomePage / layout specs.
+ * Test-only helpers shared by the HomeStateService / HomePage / layout specs.
  * Excluded from the app build via tsconfig.app.json ("src/**\/testing/**").
  */
 export interface HomeServiceMocks {
+  auth: any;
   backend: any;
   meetings: any;
   videoLists: any;
@@ -23,7 +26,19 @@ export interface HomeServiceMocks {
 }
 
 export function createHomeServiceMocks(): HomeServiceMocks {
+  const signedInUser = { uid: 'test-user', email: 'allan@example.com', displayName: 'Allan' } as User;
+  const user = signal<User | null>(signedInUser);
   return {
+    auth: {
+      user,
+      username: computed(() => user()?.email?.split('@')[0] || 'Usuario'),
+      waitForSession: jasmine.createSpy('waitForSession').and.callFake(async () => user()),
+      signInWithGoogle: jasmine.createSpy('signInWithGoogle').and.callFake(async () => {
+        user.set(signedInUser);
+        return signedInUser;
+      }),
+      logout: jasmine.createSpy('logout').and.callFake(async () => user.set(null)),
+    },
     backend: {
       videos$: of([]),
       configData$: of({ botId: '', busyRow: '', playing: false, globalVideoOrder: [] }),
@@ -62,6 +77,7 @@ export function createHomeServiceMocks(): HomeServiceMocks {
 
 export function provideHomeServiceMocks(mocks: HomeServiceMocks): Provider[] {
   return [
+    { provide: AuthService, useValue: mocks.auth },
     { provide: Firestore, useValue: {} },
     { provide: BackendService, useValue: mocks.backend },
     { provide: MeetingsService, useValue: mocks.meetings },

@@ -1,21 +1,25 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalActionsLayout } from './global-actions.layout';
-import { HomeStore } from '../../pages/home/home.store';
+import { HomeStateService } from '../../pages/home/home-state.service';
 import { createHomeServiceMocks, provideHomeServiceMocks } from '../../pages/home/testing/home-testing';
 
 describe('GlobalActionsLayout', () => {
   let fixture: ComponentFixture<GlobalActionsLayout>;
-  let store: HomeStore;
+  let state: HomeStateService;
+  let component: GlobalActionsLayout;
+  let mocks: ReturnType<typeof createHomeServiceMocks>;
   let el: HTMLElement;
 
   beforeEach(async () => {
+    mocks = createHomeServiceMocks();
     await TestBed.configureTestingModule({
       imports: [GlobalActionsLayout],
-      providers: [HomeStore, ...provideHomeServiceMocks(createHomeServiceMocks())]
+      providers: [HomeStateService, ...provideHomeServiceMocks(mocks)]
     }).compileComponents();
 
-    store = TestBed.inject(HomeStore);
+    state = TestBed.inject(HomeStateService);
     fixture = TestBed.createComponent(GlobalActionsLayout);
+    component = fixture.componentInstance;
     el = fixture.nativeElement;
     fixture.detectChanges();
   });
@@ -33,18 +37,18 @@ describe('GlobalActionsLayout', () => {
     expect(buttonByTitleOrText('Detener')!.disabled).toBeTrue();
     expect(buttonByTitleOrText('Pausa')!.disabled).toBeTrue();
 
-    store.botId = 'bot-1';
+    state.botId = 'bot-1';
     fixture.detectChanges();
     expect(buttonByTitleOrText('Detener')!.disabled).toBeFalse();
     expect(buttonByTitleOrText('Pausa')!.disabled).toBeFalse();
 
-    const stopSpy = spyOn(store, 'stopNow').and.returnValue(Promise.resolve());
+    const stopSpy = spyOn(component, 'stopNow').and.returnValue(Promise.resolve());
     buttonByTitleOrText('Detener')!.click();
     expect(stopSpy).toHaveBeenCalled();
   });
 
   it('should list the video lists and change the active list', async () => {
-    store.videoLists = [{ id: 'l1', name: 'Domingo', videoPaths: [] }];
+    state.videoLists = [{ id: 'l1', name: 'Domingo', videoPaths: [] }];
     fixture.detectChanges();
 
     const select = el.querySelector('select') as HTMLSelectElement;
@@ -53,38 +57,50 @@ describe('GlobalActionsLayout', () => {
 
     select.value = select.options[1].value;
     select.dispatchEvent(new Event('change'));
-    expect(store.activeListId()).toBe('l1');
+    expect(state.activeListId()).toBe('l1');
   });
 
   it('should only show the delete list button when a list is active', () => {
     expect(el.querySelector('button[title="Borrar lista actual"]')).toBeNull();
 
-    store.activeListId.set('l1');
+    state.activeListId.set('l1');
     fixture.detectChanges();
     const deleteBtn = el.querySelector('button[title="Borrar lista actual"]') as HTMLButtonElement;
     expect(deleteBtn).toBeTruthy();
 
-    const deleteSpy = spyOn(store, 'deleteCurrentList').and.returnValue(Promise.resolve());
+    const deleteSpy = spyOn(component, 'deleteCurrentList').and.returnValue(Promise.resolve());
     deleteBtn.click();
     expect(deleteSpy).toHaveBeenCalled();
   });
 
   it('should toggle reorder mode and show "Cancelar" while reordering', () => {
     expect(buttonByTitleOrText('Cancelar')).toBeUndefined();
-    const toggleSpy = spyOn(store, 'toggleReorder').and.callThrough();
+    const toggleSpy = spyOn(component, 'toggleReorder').and.callThrough();
 
     buttonByTitleOrText('Reordenar')!.click();
     fixture.detectChanges();
 
     expect(toggleSpy).toHaveBeenCalled();
-    expect(store.reorderMode).toBeTrue();
+    expect(state.reorderMode).toBeTrue();
     expect(buttonByTitleOrText('Guardar orden')).toBeTruthy();
 
-    const cancelSpy = spyOn(store, 'cancelReorder').and.callThrough();
+    const cancelSpy = spyOn(component, 'cancelReorder').and.callThrough();
     buttonByTitleOrText('Cancelar')!.click();
     fixture.detectChanges();
 
     expect(cancelSpy).toHaveBeenCalled();
     expect(buttonByTitleOrText('Reordenar')).toBeTruthy();
+  });
+  it('should restore the original order when reorder is cancelled', async () => {
+    state.globalVideoOrder = ['v1', 'v2'];
+
+    await component.toggleReorder(); // enter reorder mode
+    expect(state.reorderMode).toBeTrue();
+
+    state.globalVideoOrder = ['v2', 'v1'];
+    component.cancelReorder();
+
+    expect(state.reorderMode).toBeFalse();
+    expect(state.globalVideoOrder).toEqual(['v1', 'v2']);
   });
 });

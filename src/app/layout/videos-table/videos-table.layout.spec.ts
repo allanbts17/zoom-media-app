@@ -1,21 +1,25 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { VideosTableLayout } from './videos-table.layout';
-import { HomeStore } from '../../pages/home/home.store';
+import { HomeStateService } from '../../pages/home/home-state.service';
 import { createHomeServiceMocks, makeVideo, provideHomeServiceMocks } from '../../pages/home/testing/home-testing';
 
 describe('VideosTableLayout', () => {
   let fixture: ComponentFixture<VideosTableLayout>;
-  let store: HomeStore;
+  let state: HomeStateService;
+  let component: VideosTableLayout;
+  let mocks: ReturnType<typeof createHomeServiceMocks>;
   let el: HTMLElement;
 
   beforeEach(async () => {
+    mocks = createHomeServiceMocks();
     await TestBed.configureTestingModule({
       imports: [VideosTableLayout],
-      providers: [HomeStore, ...provideHomeServiceMocks(createHomeServiceMocks())]
+      providers: [HomeStateService, ...provideHomeServiceMocks(mocks)]
     }).compileComponents();
 
-    store = TestBed.inject(HomeStore);
+    state = TestBed.inject(HomeStateService);
     fixture = TestBed.createComponent(VideosTableLayout);
+    component = fixture.componentInstance;
     el = fixture.nativeElement;
   });
 
@@ -27,21 +31,21 @@ describe('VideosTableLayout', () => {
   });
 
   it('should show "Cargando..." while loading', () => {
-    store.loading = true;
+    state.loading = true;
     fixture.detectChanges();
     expect(el.textContent).toContain('Cargando...');
   });
 
   it('should show "No hay videos" when there are no videos', () => {
-    store.loading = false;
-    store.videos = [];
+    state.loading = false;
+    state.videos = [];
     fixture.detectChanges();
     expect(el.textContent).toContain('No hay videos');
   });
 
   it('should render one row per displayed video with its name', () => {
-    store.loading = false;
-    store.videos = [makeVideo('videos/uno.mp4'), makeVideo('videos/dos.mp4')];
+    state.loading = false;
+    state.videos = [makeVideo('videos/uno.mp4'), makeVideo('videos/dos.mp4')];
     fixture.detectChanges();
 
     expect(rows().length).toBe(2);
@@ -50,20 +54,20 @@ describe('VideosTableLayout', () => {
   });
 
   it('should toggle selection with the row checkbox', () => {
-    store.loading = false;
-    store.videos = [makeVideo('videos/uno.mp4')];
+    state.loading = false;
+    state.videos = [makeVideo('videos/uno.mp4')];
     fixture.detectChanges();
 
     const checkbox = rows()[0].querySelector('input[type="checkbox"]') as HTMLInputElement;
     checkbox.click();
 
-    expect(store.selectedMap['videos/uno.mp4']).toBeTrue();
+    expect(state.selectedMap['videos/uno.mp4']).toBeTrue();
   });
 
   it('should show the drag handle instead of the checkbox in reorder mode', () => {
-    store.loading = false;
-    store.videos = [makeVideo('videos/uno.mp4')];
-    store.reorderMode = true;
+    state.loading = false;
+    state.videos = [makeVideo('videos/uno.mp4')];
+    state.reorderMode = true;
     fixture.detectChanges();
 
     expect(rows()[0].querySelector('input[type="checkbox"]')).toBeNull();
@@ -71,27 +75,27 @@ describe('VideosTableLayout', () => {
   });
 
   it('should disable "Reproducir" without a bot and call playSingle with one', () => {
-    store.loading = false;
+    state.loading = false;
     const video = makeVideo('videos/uno.mp4');
-    store.videos = [video];
+    state.videos = [video];
     fixture.detectChanges();
 
     const playBtn = rows()[0].querySelector('button') as HTMLButtonElement;
     expect(playBtn.disabled).toBeTrue();
 
-    store.botId = 'bot-1';
+    state.botId = 'bot-1';
     fixture.detectChanges();
-    const playSpy = spyOn(store, 'playSingle').and.returnValue(Promise.resolve());
+    const playSpy = spyOn(component, 'playSingle').and.returnValue(Promise.resolve());
     playBtn.click();
 
     expect(playSpy).toHaveBeenCalledWith(video);
   });
 
   it('should show "..." on the row that is currently playing', () => {
-    store.loading = false;
-    store.botId = 'bot-1';
-    store.videos = [makeVideo('videos/uno.mp4')];
-    store.busyRow = 'videos/uno.mp4';
+    state.loading = false;
+    state.botId = 'bot-1';
+    state.videos = [makeVideo('videos/uno.mp4')];
+    state.busyRow = 'videos/uno.mp4';
     fixture.detectChanges();
 
     const playBtn = rows()[0].querySelector('button') as HTMLButtonElement;
@@ -101,5 +105,25 @@ describe('VideosTableLayout', () => {
 
   it('getName should return the file name after the folder', () => {
     expect(fixture.componentInstance.getName('videos/himno.mp4')).toBe('himno.mp4');
+  });
+  it('should calculate displayedVideos correctly for all list', () => {
+    state.videos = [
+      { videoPath: 'v1', videoUrl: 'u1', duration: 10, thumbnailPath: '', thumbnailUrl: '' },
+      { videoPath: 'v2', videoUrl: 'u2', duration: 10, thumbnailPath: '', thumbnailUrl: '' }
+    ];
+    state.globalVideoOrder = ['v2', 'v1'];
+    state.activeListId.set('all');
+
+    const displayed = component.displayedVideos;
+    expect(displayed[0].videoPath).toBe('v2');
+    expect(displayed[1].videoPath).toBe('v1');
+  });
+
+  it('should only show videos of the active list, in the list order', () => {
+    state.videos = [makeVideo('v1'), makeVideo('v2'), makeVideo('v3')];
+    state.videoLists = [{ id: 'l1', name: 'Lista', videoPaths: ['v3', 'v1'] }];
+    state.activeListId.set('l1');
+
+    expect(component.displayedVideos.map(v => v.videoPath)).toEqual(['v3', 'v1']);
   });
 });
