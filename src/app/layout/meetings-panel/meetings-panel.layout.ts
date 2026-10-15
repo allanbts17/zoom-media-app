@@ -5,6 +5,7 @@ import { HomeStateService } from '../../pages/home/home-state.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MeetingsService } from '../../shared/services/meetings.service';
 import { BackendService } from '../../shared/services/backend.service';
+import { ModalService } from '../../shared/services/modal.service';
 import { Meeting } from '../../interfaces';
 
 /** Zoom meeting selection, bot controls, add meeting and add videos (local / Drive search). */
@@ -18,6 +19,8 @@ export class MeetingsPanelLayout implements OnInit {
   readonly state = inject(HomeStateService);
   private readonly backend = inject(BackendService);
   private readonly meetingsService = inject(MeetingsService);
+  private readonly modalService = inject(ModalService);
+  readonly isDeletingMeeting = signal(false);
   private readonly destroyRef = inject(DestroyRef);
   readonly driveRequested = output<void>();
 
@@ -38,13 +41,33 @@ export class MeetingsPanelLayout implements OnInit {
     return this.meetings.find(m => m.id === this.selectedMeetingId()) || null;
   }
 
-  async addMeeting() {
+  async addMeeting(dialog?: HTMLDialogElement) {
     this.state.err = '';
     try {
       await this.meetingsService.addMeeting(this.newTitle, this.newUrl);
       this.newTitle = ''; this.newUrl = '';
+      dialog?.close();
     } catch (e: any) {
       this.state.err = e?.message ?? 'No se pudo añadir la reunión';
+    }
+  }
+
+  async deleteMeeting() {
+    const meeting = this.meetingSelected();
+    if (!meeting?.id || this.isDeletingMeeting()) return;
+    this.isDeletingMeeting.set(true);
+    this.state.err = '';
+    try {
+      const confirmed = await this.modalService.confirm(
+        'Eliminar reunión',
+        '¿Deseas borrar la reunión “' + (meeting.title?.trim() || meeting.url) + '”?'
+      );
+      if (!confirmed) return;
+      await this.meetingsService.deleteMeeting(meeting.id);
+    } catch (e: any) {
+      this.state.err = e?.message ?? 'No se pudo eliminar la reunión';
+    } finally {
+      this.isDeletingMeeting.set(false);
     }
   }
 
@@ -103,8 +126,8 @@ export class MeetingsPanelLayout implements OnInit {
       next: list => {
         this.meetings = list;
         const cached = this.selectedMeetingId();
-        if (!list.some(meeting => meeting.id === cached) && list.length) {
-          this.selectMeeting(list[0].id!);
+        if (!list.some(meeting => meeting.id === cached)) {
+          this.selectMeeting(list[0]?.id ?? '');
         }
       },
       error: error => this.state.err = error?.message ?? 'Error leyendo reuniones',

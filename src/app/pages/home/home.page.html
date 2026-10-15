@@ -3,9 +3,9 @@ flex flex-col overflow-y-auto custom-scrollbar
 ">
 
 
-    <header class="flex-none mb-4 flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold tracking-tight">Zoom Media</h1>
-      <app-user-menu></app-user-menu>
+    <header class="flex-none mb-4 flex items-center justify-between gap-3">
+      <h1 class="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight" title="Zoom Media Controller">Zoom Media Controller</h1>
+      <app-user-menu class="shrink-0"></app-user-menu>
     </header>
 
   <app-meetings-panel (driveRequested)="driveImport.loadDriveFiles(true)"></app-meetings-panel>

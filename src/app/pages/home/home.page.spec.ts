@@ -52,6 +52,18 @@ describe('HomePage', () => {
     ]);
   });
 
+  it('should render the title with variable width and ellipsis while keeping user menu non-shrinkable', () => {
+    fixture.detectChanges();
+    const h1 = el.querySelector('header h1');
+    const userMenu = el.querySelector('header app-user-menu');
+
+    expect(h1).toBeTruthy();
+    expect(h1?.classList.contains('min-w-0')).toBeTrue();
+    expect(h1?.classList.contains('flex-1')).toBeTrue();
+    expect(h1?.classList.contains('truncate')).toBeTrue();
+    expect(userMenu?.classList.contains('shrink-0')).toBeTrue();
+  });
+
   it('should show the error banner only when state.err is set', () => {
     fixture.detectChanges();
     expect(el.textContent).not.toContain('Algo falló');

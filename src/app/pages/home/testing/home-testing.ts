@@ -55,6 +55,7 @@ export function createHomeServiceMocks(): HomeServiceMocks {
     meetings: {
       meetings$: of([]),
       addMeeting: jasmine.createSpy('addMeeting').and.returnValue(Promise.resolve()),
+      deleteMeeting: jasmine.createSpy('deleteMeeting').and.returnValue(Promise.resolve()),
     },
     videoLists: {
       lists$: of([]),

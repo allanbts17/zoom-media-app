@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { Firestore, collection, addDoc, serverTimestamp, collectionData, query, orderBy, where, getDocs, CollectionReference } from '@angular/fire/firestore';
+import { Firestore, collection, doc, deleteDoc, addDoc, serverTimestamp, collectionData, query, orderBy, where, getDocs, CollectionReference } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { Meeting } from '../../interfaces';
 
@@ -28,5 +28,8 @@ export class MeetingsService {
       createdAt: serverTimestamp(),
     });
     console.log('Meeting added with ID:', data.id);
+  }
+  async deleteMeeting(id: string): Promise<void> {
+    await deleteDoc(doc(this.meetingsCollection, id));
   }
 }

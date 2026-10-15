@@ -186,4 +186,46 @@ describe('MeetingsPanelLayout', () => {
     expect(component.selectedMeetingId()).toBe('meeting-first');
     expect(localStorage.setItem).toHaveBeenCalledWith('selectedMeetingId', 'meeting-first');
   });
+  it('should confirm the selected meeting name and delete its Firestore document', async () => {
+    component.meetings = [{ id: 'm1', title: 'Culto', url: 'https://zoom.us/j/1' }];
+    component.selectMeeting('m1');
+    await component.deleteMeeting();
+    expect(mocks.modal.confirm).toHaveBeenCalledWith('Eliminar reunión', '¿Deseas borrar la reunión “Culto”?');
+    expect(mocks.meetings.deleteMeeting).toHaveBeenCalledOnceWith('m1');
+    expect(component.isDeletingMeeting()).toBeFalse();
+  });
+
+  it('should leave the meeting intact when confirmation is cancelled', async () => {
+    component.meetings = [{ id: 'm1', url: 'https://zoom.us/j/1' }];
+    component.selectMeeting('m1');
+    mocks.modal.confirm.and.resolveTo(false);
+    await component.deleteMeeting();
+    expect(mocks.modal.confirm).toHaveBeenCalledWith('Eliminar reunión', '¿Deseas borrar la reunión “https://zoom.us/j/1”?');
+    expect(mocks.meetings.deleteMeeting).not.toHaveBeenCalled();
+    expect(component.isDeletingMeeting()).toBeFalse();
+  });
+
+  it('should show deletion failures and allow retrying', async () => {
+    component.meetings = [{ id: 'm1', url: 'https://zoom.us/j/1' }];
+    component.selectMeeting('m1');
+    mocks.meetings.deleteMeeting.and.rejectWith(new Error('No se pudo eliminar'));
+    await component.deleteMeeting();
+    expect(state.err).toBe('No se pudo eliminar');
+    expect(component.isDeletingMeeting()).toBeFalse();
+  });
+
+  it('should disable deletion without a selected meeting', () => {
+    component.selectedMeetingId.set('');
+    fixture.detectChanges();
+    expect(buttonByText('Eliminar reunión').disabled).toBeTrue();
+  });
+
+  it('should clear the cached selection when no meetings remain', () => {
+    component.selectMeeting('m1');
+    mocks.meetings.meetings$ = new Subject<any[]>();
+    component.ngOnInit();
+    mocks.meetings.meetings$.next([]);
+    expect(component.selectedMeetingId()).toBe('');
+    expect(localStorage.getItem('selectedMeetingId')).toBe('');
+  });
 });
