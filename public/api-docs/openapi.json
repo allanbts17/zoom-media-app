@@ -1,0 +1,3160 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Zoom bot API",
+    "version": "1.0.0",
+    "description": "> **Documentación pública de consulta.** Para ejecutar solicitudes usa el Swagger local autenticado: `./scripts/open-swagger.ps1` en el repositorio del bot.\n\n\nControla un bot para **una reunión simultánea**. Entrar y presentar medios son\nórdenes independientes. Stop/fin del archivo conservan la reunión; DELETE sale.\n\n### Abrir y probar en el navegador\nDesde la raíz del proyecto, ejecutar `./scripts/open-swagger.ps1` y abrir\n`http://localhost:8085/docs`. El proxy oficial de gcloud añade tu ID token;\nno hace falta pegarlo en Authorize. La URL run.app directa exige IAM incluso\npara /docs y /openapi.json. Firebase Auth no sustituye ese ID token.\n\n### Flujo de prueba\n1. GET /v1/capacity: comprobar available_slots=1 y worker_status=healthy.\n2. POST /v1/bots: introducir número sin espacios, contraseña y nombre.\n3. Copiar bot_id y operation_id; consultar GET /v1/operations/{operation_id}\n   hasta succeeded. 202 significa **aceptado**, no que ya entró.\n4. POST /v1/bots/{bot_id}/play: elegir ejemplo video, audio o imagen.\n5. Consultar operación y estado. Guardar playback_id para los controles.\n6. Probar pause, resume, stop. Después de stop se puede iniciar otro play.\n7. DELETE /v1/bots/{bot_id}; consultar operación y capacidad hasta liberar plaza.\n\nEn cada POST/DELETE llenar **Idempotency-Key**. Generar una clave con\n`[guid]::NewGuid().ToString()`. Nueva orden: nueva clave. Reintento de la misma\norden tras perder respuesta: **misma clave y mismo cuerpo**. Las claves duran\n24 h; una operación antigua puede seguir siendo succeeded aunque el bot ya salió.\n\n### Límites y medios\nSolo HTTPS público de storage.googleapis.com/zoom-app-dev.firebasestorage.app.\nVideo: MP4 H.264, AAC si se habilita audio, hasta 1920x1080 y 30 FPS.\nAudio: MP3, WAV PCM o M4A AAC. Imagen: PNG/JPEG, hasta 4096 por lado y 16 MP.\nMáximo 1 GiB por video/audio, 10 MiB por imagen y 60 min por video/audio.\nLa resolución emitida depende de lo negociado con Zoom, no de la entrada.\nImagen sin duration_seconds sigue hasta stop/salida; una imagen no tiene audio.\n\n60 solicitudes/minuto, 10 órdenes/minuto, ráfaga máxima de 5 órdenes/segundo.\nConsultar operaciones cada 2-3 s. 409 expresa conflicto de estado/capacidad,\n422 entrada inválida, 429 límite y 503 agente no disponible. Los errores de\ndescarga/SDK posteriores a 202 aparecen en la operación, no en la respuesta inicial.\nLas políticas del anfitrión/red siguen en validación: no se garantiza reactivar\nautomáticamente una pista bloqueada por Zoom.\n"
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "summary": "Proceso HTTP vivo",
+        "operationId": "get_health_live",
+        "responses": {
+          "200": {
+            "description": "Consulta completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Liveness"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Salud"
+        ],
+        "description": "No comprueba conexión con el agente ni capacidad. IAM Cloud Run también protege esta ruta pública.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "summary": "Disponibilidad del agente",
+        "operationId": "get_health_ready",
+        "responses": {
+          "200": {
+            "description": "Consulta completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                },
+                "example": {
+                  "status": "ready",
+                  "checks": {
+                    "database": "ok",
+                    "worker": "healthy"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Heartbeat no listo, o comunicación con el agente no disponible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Readiness"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorBody"
+                    }
+                  ]
+                },
+                "example": {
+                  "status": "not_ready",
+                  "checks": {
+                    "database": "ok",
+                    "worker": "unavailable"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Salud"
+        ],
+        "description": "200 si el heartbeat está vigente; 503 si no está listo. No libera plazas por falta de heartbeat.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/bots": {
+      "post": {
+        "summary": "Entrar a Zoom sin medios",
+        "operationId": "post_v1_bots",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Obligatorio. Nueva clave por orden; conservarla para reintentar la misma orden/cuerpo. Ejemplo: UUID generado en PowerShell.",
+            "example": "swagger-test-20261014-001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinRequest"
+              },
+              "examples": {
+                "entrar_sin_medios": {
+                  "summary": "Reemplazar por tu reunión",
+                  "value": {
+                    "meeting": {
+                      "number": "123456789",
+                      "password": "",
+                      "participant_name": "VideoBot-Prueba"
+                    },
+                    "options": {
+                      "waiting_room_timeout_seconds": 180,
+                      "max_session_seconds": 600
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Orden aceptada: consultar operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "accepted",
+                  "action": "join",
+                  "playback_id": null,
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "IDEMPOTENCY_KEY_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_KEY_REQUIRED",
+                    "message": "idempotency key required",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "CAPACITY_EXCEEDED",
+                    "message": "capacity exceeded",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "request too large",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_CONTENT_TYPE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNSUPPORTED_CONTENT_TYPE",
+                    "message": "unsupported content type",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Bots"
+        ],
+        "description": "Número de 9-11 dígitos sin espacios. No reproduce medios. Copiar bot_id/operation_id y esperar succeeded en la operación. La sala de espera puede exigir admisión del anfitrión.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "Listar bots e historial",
+        "operationId": "get_v1_bots",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Máximo de elementos en esta página."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            },
+            "description": "next_cursor de la página anterior, con el mismo filtro status."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(accepted|preparing|joining|waiting_room|active|reconnecting|leaving|ended|failed)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            },
+            "description": "Filtra estado de sesión (no estado de reproducción)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consulta completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotList"
+                },
+                "example": {
+                  "items": [],
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Bots"
+        ],
+        "description": "Orden descendente de creación. next_cursor permite otra página; conservar el mismo filtro status. No devolver credenciales.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/bots/{bot_id}": {
+      "get": {
+        "summary": "Consultar reunión y reproducción",
+        "operationId": "get_v1_bots_bot_id",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bot Id"
+            },
+            "description": "UUID devuelto por POST /v1/bots."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consulta completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotStatus"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "status": "active",
+                  "meeting": {
+                    "number": "123456789",
+                    "participant_name": "VideoBot",
+                    "status": "in_meeting",
+                    "audio_permission": null,
+                    "video_permission": null
+                  },
+                  "playback": {
+                    "playback_id": "12345678-1234-4234-8234-123456789abc",
+                    "media_type": "video",
+                    "status": "playing",
+                    "position_seconds": 12.4,
+                    "duration_seconds": 109.018,
+                    "audio_enabled": true,
+                    "pause_reasons": [],
+                    "can_pause": true,
+                    "can_resume": true,
+                    "can_stop": true
+                  },
+                  "resource_released": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Bots"
+        ],
+        "description": "active confirma entrada. resource_released confirma limpieza. position_seconds y capacidades pueden ser null cuando no se conocen. Un join histórico succeeded no implica sesión aún conectada.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Salir y liberar el bot",
+        "operationId": "delete_v1_bots_bot_id",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bot Id"
+            },
+            "description": "UUID devuelto por POST /v1/bots."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Obligatorio. Nueva clave por orden; conservarla para reintentar la misma orden/cuerpo. Ejemplo: UUID generado en PowerShell.",
+            "example": "swagger-test-20261014-001"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Orden aceptada: consultar operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "queued",
+                  "action": "leave",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Recursos ya liberados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "succeeded",
+                  "action": "leave",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  },
+                  "no_op": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "IDEMPOTENCY_KEY_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_KEY_REQUIRED",
+                    "message": "idempotency key required",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "CAPACITY_EXCEEDED",
+                    "message": "capacity exceeded",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "request too large",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_CONTENT_TYPE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNSUPPORTED_CONTENT_TYPE",
+                    "message": "unsupported content type",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Bots"
+        ],
+        "description": "Sin cuerpo. Cancela órdenes pendientes y pide salida. Esperar operación succeeded y resource_released=true antes de asumir plaza libre. 200 si ya estaba liberado; 202 si debe ejecutarse.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/bots/{bot_id}/play": {
+      "post": {
+        "summary": "Presentar video, audio o imagen",
+        "operationId": "post_v1_bots_bot_id_play",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bot Id"
+            },
+            "description": "UUID devuelto por POST /v1/bots."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Obligatorio. Nueva clave por orden; conservarla para reintentar la misma orden/cuerpo. Ejemplo: UUID generado en PowerShell.",
+            "example": "swagger-test-20261014-001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayRequest"
+              },
+              "examples": {
+                "video": {
+                  "summary": "Video y audio",
+                  "value": {
+                    "media": {
+                      "type": "video",
+                      "url": "https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/videos/015%20Lo%C3%A1moste%2C%20%C2%A1oh%20Dios!.mp4",
+                      "audio_enabled": true
+                    }
+                  }
+                },
+                "video_sin_audio": {
+                  "summary": "Solo video",
+                  "value": {
+                    "media": {
+                      "type": "video",
+                      "url": "https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/videos/015%20Lo%C3%A1moste%2C%20%C2%A1oh%20Dios!.mp4",
+                      "audio_enabled": false
+                    }
+                  }
+                },
+                "audio": {
+                  "summary": "MP3, cámara apagada",
+                  "value": {
+                    "media": {
+                      "type": "audio",
+                      "url": "https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/audios/Vientos%20susurrantes(6).mp3"
+                    }
+                  }
+                },
+                "imagen": {
+                  "summary": "Foto fija sin sonido por 120 s",
+                  "value": {
+                    "media": {
+                      "type": "image",
+                      "url": "https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/images/IMG-20220410-WA0123.jpg",
+                      "duration_seconds": 120
+                    }
+                  }
+                },
+                "imagen_indefinida": {
+                  "summary": "Foto hasta stop o salida",
+                  "value": {
+                    "media": {
+                      "type": "image",
+                      "url": "https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/images/IMG-20220410-WA0123.jpg"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Orden aceptada: consultar operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "queued",
+                  "action": "play",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "IDEMPOTENCY_KEY_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_KEY_REQUIRED",
+                    "message": "idempotency key required",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "CAPACITY_EXCEEDED",
+                    "message": "capacity exceeded",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "request too large",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_CONTENT_TYPE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNSUPPORTED_CONTENT_TYPE",
+                    "message": "unsupported content type",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Reproducción"
+        ],
+        "description": "Bot active y reproducción anterior detenida/terminada. Descarga y valida antes de emitir. El playback_id se asigna al aceptar. Succeeded confirma los primeros envíos requeridos, no el fin del clip. Video/audio se reproducen una vez.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/bots/{bot_id}/pause": {
+      "post": {
+        "summary": "Pausar el medio actual",
+        "operationId": "post_v1_bots_bot_id_pause",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bot Id"
+            },
+            "description": "UUID devuelto por POST /v1/bots."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Obligatorio. Nueva clave por orden; conservarla para reintentar la misma orden/cuerpo. Ejemplo: UUID generado en PowerShell.",
+            "example": "swagger-test-20261014-001"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ControlRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              },
+              "examples": {
+                "intento_actual": {
+                  "value": {
+                    "playback_id": "12345678-1234-4234-8234-123456789abc"
+                  }
+                },
+                "sin_id": {
+                  "summary": "Controlar intento actual sin protección de ID",
+                  "value": {}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Orden aceptada: consultar operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "queued",
+                  "action": "pause",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Control ya aplicado; operación no-op persistida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "succeeded",
+                  "action": "pause",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  },
+                  "no_op": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "IDEMPOTENCY_KEY_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_KEY_REQUIRED",
+                    "message": "idempotency key required",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "CAPACITY_EXCEEDED",
+                    "message": "capacity exceeded",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "request too large",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_CONTENT_TYPE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNSUPPORTED_CONTENT_TYPE",
+                    "message": "unsupported content type",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Reproducción"
+        ],
+        "description": "Congela posición, imagen y sonido manteniendo la reunión. Cuerpo opcional; playback_id protege frente a controlar otro intento. 200 no-op si la pausa ya estaba aplicada.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/bots/{bot_id}/resume": {
+      "post": {
+        "summary": "Reanudar desde la pausa",
+        "operationId": "post_v1_bots_bot_id_resume",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bot Id"
+            },
+            "description": "UUID devuelto por POST /v1/bots."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Obligatorio. Nueva clave por orden; conservarla para reintentar la misma orden/cuerpo. Ejemplo: UUID generado en PowerShell.",
+            "example": "swagger-test-20261014-001"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ControlRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              },
+              "examples": {
+                "intento_actual": {
+                  "value": {
+                    "playback_id": "12345678-1234-4234-8234-123456789abc"
+                  }
+                },
+                "sin_id": {
+                  "summary": "Controlar intento actual sin protección de ID",
+                  "value": {}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Orden aceptada: consultar operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "queued",
+                  "action": "resume",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Control ya aplicado; operación no-op persistida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "succeeded",
+                  "action": "resume",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  },
+                  "no_op": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "IDEMPOTENCY_KEY_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_KEY_REQUIRED",
+                    "message": "idempotency key required",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "CAPACITY_EXCEEDED",
+                    "message": "capacity exceeded",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "request too large",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_CONTENT_TYPE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNSUPPORTED_CONTENT_TYPE",
+                    "message": "unsupported content type",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Reproducción"
+        ],
+        "description": "Continúa la posición; no reinicia un clip terminado. Bloqueos externos pueden rechazar resume con 409 PLAYBACK_BLOCKED. 200 no-op si ya estaba reproduciendo.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/bots/{bot_id}/stop": {
+      "post": {
+        "summary": "Detener sin salir de Zoom",
+        "operationId": "post_v1_bots_bot_id_stop",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bot Id"
+            },
+            "description": "UUID devuelto por POST /v1/bots."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Obligatorio. Nueva clave por orden; conservarla para reintentar la misma orden/cuerpo. Ejemplo: UUID generado en PowerShell.",
+            "example": "swagger-test-20261014-001"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ControlRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              },
+              "examples": {
+                "intento_actual": {
+                  "value": {
+                    "playback_id": "12345678-1234-4234-8234-123456789abc"
+                  }
+                },
+                "sin_id": {
+                  "summary": "Controlar intento actual sin protección de ID",
+                  "value": {}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Orden aceptada: consultar operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "queued",
+                  "action": "stop",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Control ya aplicado; operación no-op persistida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedOperation"
+                },
+                "example": {
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "status": "succeeded",
+                  "action": "stop",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "links": {
+                    "bot": "/v1/bots/11223344-5566-4788-99aa-bbccddeeff00",
+                    "operation": "/v1/operations/aabbccdd-1122-4334-8556-77889900aabb"
+                  },
+                  "no_op": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "IDEMPOTENCY_KEY_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_KEY_REQUIRED",
+                    "message": "idempotency key required",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "CAPACITY_EXCEEDED",
+                    "message": "capacity exceeded",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "request too large",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_CONTENT_TYPE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNSUPPORTED_CONTENT_TYPE",
+                    "message": "unsupported content type",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Reproducción"
+        ],
+        "description": "Detiene ambas pistas y permite otro play desde cero. Puede cancelar una descarga en curso. Incluso si ya estaba detenido/terminado puede responder 202; consultar la operación hasta succeeded y comprobar no_op=true. Finished conserva su estado. La última imagen puede permanecer visible.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/operations/{operation_id}": {
+      "get": {
+        "summary": "Consultar resultado de una orden",
+        "operationId": "get_v1_operations_operation_id",
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Operation Id"
+            },
+            "description": "UUID devuelto al aceptar una orden."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consulta completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationStatus"
+                },
+                "example": {
+                  "operation_id": "aabbccdd-1122-4334-8556-77889900aabb",
+                  "bot_id": "11223344-5566-4788-99aa-bbccddeeff00",
+                  "action": "play",
+                  "playback_id": "12345678-1234-4234-8234-123456789abc",
+                  "status": "succeeded",
+                  "no_op": false,
+                  "requested_at": "2026-10-14T03:21:49Z",
+                  "started_at": "2026-10-14T03:21:49Z",
+                  "completed_at": "2026-10-14T03:21:51Z",
+                  "result": {
+                    "playback_id": "12345678-1234-4234-8234-123456789abc",
+                    "playback_status": "playing",
+                    "position_seconds": 0.04
+                  },
+                  "error": null
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Operaciones"
+        ],
+        "description": "Consultar cada 2-3 segundos hasta succeeded, failed o cancelled. Los fallos de SDK/medios posteriores a 202 aparecen en error.code. Las operaciones ya completadas permanecen históricas después de salir.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/bots/{bot_id}/events": {
+      "get": {
+        "summary": "Consultar eventos por secuencia",
+        "operationId": "get_v1_bots_bot_id_events",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bot Id"
+            },
+            "description": "UUID devuelto por POST /v1/bots."
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "After Sequence"
+            },
+            "description": "Solo eventos con secuencia mayor; usar next_after_sequence anterior."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Máximo de elementos en esta página."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consulta completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                },
+                "example": {
+                  "items": [
+                    {
+                      "sequence": 1,
+                      "type": "meeting.joined",
+                      "occurred_at": "2026-10-14T03:21:31Z",
+                      "data": {
+                        "operation_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                      }
+                    }
+                  ],
+                  "next_after_sequence": 1,
+                  "has_more": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Eventos"
+        ],
+        "description": "Historial agregado, no SSE ni WebSocket. Usar next_after_sequence en la siguiente consulta; si has_more=true quedan eventos. Ejemplos: meeting.joined, playback.started, operation.succeeded.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/capacity": {
+      "get": {
+        "summary": "Consultar plaza disponible",
+        "operationId": "get_v1_capacity",
+        "responses": {
+          "200": {
+            "description": "Consulta completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capacity"
+                },
+                "example": {
+                  "max_concurrent_bots": 1,
+                  "reserved_slots": 0,
+                  "available_slots": 1,
+                  "active_bot_id": null,
+                  "accepting_new_sessions": true,
+                  "worker_status": "healthy"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "BOT_NOT_FOUND",
+                    "message": "bot not found",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "validation error",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "rate limited",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WORKER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                },
+                "example": {
+                  "error": {
+                    "code": "WORKER_UNAVAILABLE",
+                    "message": "worker unavailable",
+                    "request_id": "aabbccdd-1122-4334-8556-77889900aabb"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cloud Run IAM rechazó la identidad o su ID token. Puede responder HTML/texto antes de entrar a la aplicación."
+          }
+        },
+        "tags": [
+          "Capacidad"
+        ],
+        "description": "Antes de entrar, comprobar available_slots=1 y accepting_new_sessions=true. Una salida incompleta conserva la reserva.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AudioMedia": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "type": {
+            "type": "string",
+            "const": "audio",
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "type"
+        ],
+        "title": "AudioMedia"
+      },
+      "ControlRequest": {
+        "properties": {
+          "playback_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playback Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ControlRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ImageMedia": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "type": {
+            "type": "string",
+            "const": "image",
+            "title": "Type"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3600.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "type"
+        ],
+        "title": "ImageMedia"
+      },
+      "JoinRequest": {
+        "properties": {
+          "meeting": {
+            "$ref": "#/components/schemas/Meeting"
+          },
+          "options": {
+            "$ref": "#/components/schemas/Options"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "meeting"
+        ],
+        "title": "JoinRequest"
+      },
+      "Meeting": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "pattern": "^[0-9]{9,11}$",
+            "title": "Number"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Password",
+            "default": ""
+          },
+          "participant_name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Participant Name",
+            "default": "VideoBot"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number"
+        ],
+        "title": "Meeting"
+      },
+      "Options": {
+        "properties": {
+          "waiting_room_timeout_seconds": {
+            "type": "integer",
+            "maximum": 1800.0,
+            "minimum": 30.0,
+            "title": "Waiting Room Timeout Seconds",
+            "default": 900
+          },
+          "max_session_seconds": {
+            "type": "integer",
+            "maximum": 5400.0,
+            "minimum": 60.0,
+            "title": "Max Session Seconds",
+            "default": 5400
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Options"
+      },
+      "PlayRequest": {
+        "properties": {
+          "media": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VideoMedia"
+              },
+              {
+                "$ref": "#/components/schemas/AudioMedia"
+              },
+              {
+                "$ref": "#/components/schemas/ImageMedia"
+              }
+            ],
+            "title": "Media",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "audio": "#/components/schemas/AudioMedia",
+                "image": "#/components/schemas/ImageMedia",
+                "video": "#/components/schemas/VideoMedia"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "media"
+        ],
+        "title": "PlayRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VideoMedia": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "type": {
+            "type": "string",
+            "const": "video",
+            "title": "Type"
+          },
+          "audio_enabled": {
+            "type": "boolean",
+            "title": "Audio Enabled",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "type"
+        ],
+        "title": "VideoMedia"
+      },
+      "ApiErrorBody": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "request_id"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "AcceptedOperation": {
+        "type": "object",
+        "properties": {
+          "bot_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "queued",
+              "succeeded"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "join",
+              "play",
+              "pause",
+              "resume",
+              "stop",
+              "leave"
+            ]
+          },
+          "playback_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "no_op": {
+            "type": "boolean"
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "bot": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "bot",
+              "operation"
+            ]
+          }
+        },
+        "required": [
+          "bot_id",
+          "operation_id",
+          "status",
+          "action",
+          "links"
+        ]
+      },
+      "PlaybackStatus": {
+        "type": "object",
+        "properties": {
+          "playback_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "media_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "buffering",
+              "waiting",
+              "playing",
+              "paused",
+              "stopped",
+              "finished",
+              "failed"
+            ]
+          },
+          "position_seconds": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "duration_seconds": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "audio_enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "pause_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "can_pause": {
+            "type": "boolean"
+          },
+          "can_resume": {
+            "type": "boolean"
+          },
+          "can_stop": {
+            "type": "boolean"
+          }
+        },
+        "required": []
+      },
+      "BotStatus": {
+        "type": "object",
+        "properties": {
+          "bot_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "preparing",
+              "joining",
+              "waiting_room",
+              "active",
+              "reconnecting",
+              "leaving",
+              "ended",
+              "failed"
+            ]
+          },
+          "meeting": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "string"
+              },
+              "participant_name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "audio_permission": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "video_permission": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": []
+          },
+          "playback": {
+            "$ref": "#/components/schemas/PlaybackStatus"
+          },
+          "media": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Metadata de descarga y source; output puede ser null si el SDK no lo expone. No incluye URL ni rutas."
+          },
+          "pending_operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resource_released": {
+            "type": "boolean"
+          },
+          "state_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_error": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": []
+      },
+      "BotList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BotStatus"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "OperationStatus": {
+        "type": "object",
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bot_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string"
+          },
+          "playback_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "no_op": {
+            "type": "boolean"
+          },
+          "requested_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "result": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Resultado aplicado, por ejemplo posición y estado de reproducción."
+          },
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": []
+      },
+      "EventPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sequence": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "type": {
+                  "type": "string"
+                },
+                "occurred_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "data": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "sequence",
+                "type",
+                "occurred_at",
+                "data"
+              ]
+            }
+          },
+          "next_after_sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "next_after_sequence",
+          "has_more"
+        ]
+      },
+      "Capacity": {
+        "type": "object",
+        "properties": {
+          "max_concurrent_bots": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reserved_slots": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "available_slots": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "active_bot_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accepting_new_sessions": {
+            "type": "boolean"
+          },
+          "worker_status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "unavailable"
+            ]
+          }
+        },
+        "required": []
+      },
+      "Liveness": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "Readiness": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_ready"
+            ]
+          },
+          "checks": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "string"
+              },
+              "worker": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "required": []
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Google ID token",
+        "description": "IAM Cloud Run: ID token con audience igual a URL base run.app y permiso run.invoker. Con el proxy local gcloud, no llenar Authorize."
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Salud",
+      "description": "Proceso HTTP y disponibilidad del agente privado."
+    },
+    {
+      "name": "Capacidad",
+      "description": "Una sola plaza; se conserva hasta confirmar limpieza."
+    },
+    {
+      "name": "Bots",
+      "description": "Entrar sin medios, consultar y salir de Zoom."
+    },
+    {
+      "name": "Reproducción",
+      "description": "Video, audio e imagen en una sesión existente."
+    },
+    {
+      "name": "Operaciones",
+      "description": "Resultado asíncrono de cada orden aceptada."
+    },
+    {
+      "name": "Eventos",
+      "description": "Historial ordenado, con paginación por secuencia."
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://zoom-bot-api-722146628233.us-central1.run.app",
+      "description": "Cloud Run privado (IAM)"
+    }
+  ]
+}
