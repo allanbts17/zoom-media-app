@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Firestore, collection, addDoc, serverTimestamp, collectionData, query, orderBy, where, getDocs, CollectionReference } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
-import { Meeting } from '../interfaces';
+import { Meeting } from '../../interfaces';
 
 @Injectable({
   providedIn: 'root',

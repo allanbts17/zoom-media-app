@@ -1,0 +1,4 @@
+/* Host box is transparent so the inner <section> keeps flex-1 inside <main>. */
+:host {
+  display: contents;
+}

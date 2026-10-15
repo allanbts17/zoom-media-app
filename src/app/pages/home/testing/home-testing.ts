@@ -1,0 +1,84 @@
+import { Provider } from '@angular/core';
+import { Firestore } from '@angular/fire/firestore';
+import { of } from 'rxjs';
+import { BackendService } from '../../../shared/services/backend.service';
+import { MeetingsService } from '../../../shared/services/meetings.service';
+import { ZoomService } from '../../../shared/services/zoom.service';
+import { VideoListsService } from '../../../shared/services/video-lists.service';
+import { ModalService } from '../../../shared/services/modal.service';
+import { LoadingService } from '../../../shared/services/loading.service';
+import { VideoItem } from '../../../interfaces';
+
+/**
+ * Test-only helpers shared by the HomeStore / HomePage / layout specs.
+ * Excluded from the app build via tsconfig.app.json ("src/**\/testing/**").
+ */
+export interface HomeServiceMocks {
+  backend: any;
+  meetings: any;
+  videoLists: any;
+  zoom: any;
+  modal: any;
+  loading: any;
+}
+
+export function createHomeServiceMocks(): HomeServiceMocks {
+  return {
+    backend: {
+      videos$: of([]),
+      configData$: of({ botId: '', busyRow: '', playing: false, globalVideoOrder: [] }),
+      setConfig: jasmine.createSpy('setConfig').and.returnValue(Promise.resolve()),
+      createBot: jasmine.createSpy('createBot').and.returnValue(of({ id: 'bot123' })),
+      removeBot: jasmine.createSpy('removeBot').and.returnValue(of({ id: 'bot123' })),
+      outputMedia: jasmine.createSpy('outputMedia').and.returnValue(of({})),
+      stopMedia: jasmine.createSpy('stopMedia').and.returnValue(of({})),
+      uploadVideo: jasmine.createSpy('uploadVideo').and.returnValue(Promise.resolve()),
+      deleteVideo: jasmine.createSpy('deleteVideo').and.returnValue(Promise.resolve()),
+      listDriveFiles: jasmine.createSpy('listDriveFiles').and.returnValue(of({ files: [] })),
+      importDriveFile: jasmine.createSpy('importDriveFile').and.returnValue(of({ gcsPath: '' })),
+    },
+    meetings: {
+      meetings$: of([]),
+      addMeeting: jasmine.createSpy('addMeeting').and.returnValue(Promise.resolve()),
+    },
+    videoLists: {
+      lists$: of([]),
+      addList: jasmine.createSpy('addList').and.returnValue(Promise.resolve()),
+      updateList: jasmine.createSpy('updateList').and.returnValue(Promise.resolve()),
+      deleteList: jasmine.createSpy('deleteList').and.returnValue(Promise.resolve()),
+    },
+    zoom: {
+      shareApp: jasmine.createSpy('shareApp').and.returnValue(Promise.resolve()),
+    },
+    modal: {
+      confirm: jasmine.createSpy('confirm').and.returnValue(Promise.resolve(true)),
+    },
+    loading: {
+      show: jasmine.createSpy('show'),
+      hide: jasmine.createSpy('hide'),
+    },
+  };
+}
+
+export function provideHomeServiceMocks(mocks: HomeServiceMocks): Provider[] {
+  return [
+    { provide: Firestore, useValue: {} },
+    { provide: BackendService, useValue: mocks.backend },
+    { provide: MeetingsService, useValue: mocks.meetings },
+    { provide: VideoListsService, useValue: mocks.videoLists },
+    { provide: ZoomService, useValue: mocks.zoom },
+    { provide: ModalService, useValue: mocks.modal },
+    { provide: LoadingService, useValue: mocks.loading },
+  ];
+}
+
+export function makeVideo(videoPath: string, overrides: Partial<VideoItem> = {}): VideoItem {
+  return {
+    videoPath,
+    videoUrl: `https://storage/${videoPath}`,
+    duration: 10,
+    thumbnailPath: '',
+    thumbnailUrl: '',
+    ...overrides,
+  };
+}

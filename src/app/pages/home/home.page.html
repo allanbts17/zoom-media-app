@@ -1,0 +1,27 @@
+<main class="min-h-screen h-full bg-gray-50 text-gray-900 dark:bg-neutral-900 dark:text-neutral-100 p-4 max-w-5xl mx-auto
+flex flex-col overflow-y-auto custom-scrollbar
+">
+
+
+    <h1 class="flex-none text-2xl font-semibold mb-3">Zoom Media Controller</h1>
+
+  <app-meetings-panel></app-meetings-panel>
+
+  <app-global-actions></app-global-actions>
+
+  <app-selection-bar></app-selection-bar>
+
+  <!-- Errores -->
+  <div *ngIf="store.err" class="flex-none mb-3 p-2 border border-red-400 text-red-700 dark:text-red-200 rounded bg-red-50 dark:bg-red-900/30">
+    {{ store.err }}
+  </div>
+
+
+  <app-videos-table></app-videos-table>
+
+  <app-drive-import></app-drive-import>
+
+  <p class="flex-none mt-3 text-xs text-gray-500 dark:text-gray-400">
+    Tip: "Duración" se calcula con metadatos del video sin descargar el archivo completo.
+  </p>
+</main>

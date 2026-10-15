@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { LoadingService } from './loading.service';
 import { Firestore, CollectionReference, collection, collectionData, setDoc, doc, docData, DocumentData } from '@angular/fire/firestore';
 import { Observable, Subscription } from 'rxjs';
-import { Config, VideoItem, DriveFile } from '../interfaces';
+import { Config, VideoItem, DriveFile } from '../../interfaces';
 
 @Injectable({
   providedIn: 'root',

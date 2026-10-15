@@ -1,0 +1,4 @@
+/* Host box is transparent so the inner <section> stays a direct flex item of <main>. */
+:host {
+  display: contents;
+}
