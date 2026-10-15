@@ -2,12 +2,12 @@
 <div *ngIf="store.selectedList().length > 0 && !store.reorderMode" class="flex-none flex flex-wrap gap-2 mb-3 p-3 bg-gray-100 dark:bg-white/10 rounded-lg items-center border border-gray-400 dark:border-white/20">
   <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ store.selectedList().length }} seleccionados</span>
   
-  <input class="border border-gray-500 dark:border-white/20 rounded px-2 py-1 bg-white dark:bg-transparent text-gray-900 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-gray-300 ml-2" placeholder="Nueva lista..." [(ngModel)]="store.newListTitle" />
+  <input class="border border-gray-500 dark:border-white/20 rounded px-2 py-1 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-gray-300 ml-2" placeholder="Nueva lista..." [(ngModel)]="store.newListTitle" />
   <button class="px-3 py-1 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/20 text-sm" (click)="store.createNewList()">Crear lista</button>
   
   <div class="h-5 w-px bg-gray-400 dark:bg-white/20 mx-1"></div>
   
-  <select #addToListSelect class="border border-gray-500 dark:border-white/20 rounded px-2 py-1 bg-white dark:bg-transparent text-gray-900 dark:text-neutral-100 text-sm max-w-[150px]">
+  <select #addToListSelect class="border border-gray-500 dark:border-white/20 rounded px-2 py-1 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 text-sm max-w-[150px]">
     <option value="">-- Añadir a lista --</option>
     <option *ngFor="let list of store.videoLists" [value]="list.id">{{ list.name }}</option>
   </select>

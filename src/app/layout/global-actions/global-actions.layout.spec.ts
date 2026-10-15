@@ -20,21 +20,26 @@ describe('GlobalActionsLayout', () => {
     fixture.detectChanges();
   });
 
-  const buttonByText = (text: string) =>
-    Array.from(el.querySelectorAll('button')).find(b => b.textContent?.includes(text)) as HTMLButtonElement | undefined;
+  const buttonByTitleOrText = (text: string) =>
+    Array.from(el.querySelectorAll('button')).find(
+      b => b.title === text || b.getAttribute('aria-label') === text || b.textContent?.includes(text)
+    ) as HTMLButtonElement | undefined;
 
   it('should create', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should only enable "Detener" when there is a bot', () => {
-    expect(buttonByText('Detener')!.disabled).toBeTrue();
+  it('should only enable "Detener" and "Pausa" when there is a bot', () => {
+    expect(buttonByTitleOrText('Detener')!.disabled).toBeTrue();
+    expect(buttonByTitleOrText('Pausa')!.disabled).toBeTrue();
 
     store.botId = 'bot-1';
     fixture.detectChanges();
-    const stopSpy = spyOn(store, 'stopNow').and.returnValue(Promise.resolve());
-    buttonByText('Detener')!.click();
+    expect(buttonByTitleOrText('Detener')!.disabled).toBeFalse();
+    expect(buttonByTitleOrText('Pausa')!.disabled).toBeFalse();
 
+    const stopSpy = spyOn(store, 'stopNow').and.returnValue(Promise.resolve());
+    buttonByTitleOrText('Detener')!.click();
     expect(stopSpy).toHaveBeenCalled();
   });
 
@@ -65,21 +70,21 @@ describe('GlobalActionsLayout', () => {
   });
 
   it('should toggle reorder mode and show "Cancelar" while reordering', () => {
-    expect(buttonByText('Cancelar')).toBeUndefined();
+    expect(buttonByTitleOrText('Cancelar')).toBeUndefined();
     const toggleSpy = spyOn(store, 'toggleReorder').and.callThrough();
 
-    buttonByText('Reordenar')!.click();
+    buttonByTitleOrText('Reordenar')!.click();
     fixture.detectChanges();
 
     expect(toggleSpy).toHaveBeenCalled();
     expect(store.reorderMode).toBeTrue();
-    expect(buttonByText('Guardar orden')).toBeTruthy();
+    expect(buttonByTitleOrText('Guardar orden')).toBeTruthy();
 
     const cancelSpy = spyOn(store, 'cancelReorder').and.callThrough();
-    buttonByText('Cancelar')!.click();
+    buttonByTitleOrText('Cancelar')!.click();
     fixture.detectChanges();
 
     expect(cancelSpy).toHaveBeenCalled();
-    expect(buttonByText('Reordenar')).toBeTruthy();
+    expect(buttonByTitleOrText('Reordenar')).toBeTruthy();
   });
 });
