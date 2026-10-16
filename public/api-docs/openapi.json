@@ -2498,11 +2498,17 @@
             "default": 900
           },
           "max_session_seconds": {
-            "type": "integer",
-            "maximum": 5400.0,
-            "minimum": 60.0,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 60.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Max Session Seconds",
-            "default": 5400
+            "description": "Duración máxima desde aceptación, en segundos. Omitido o null: sin cierre automático por duración. Si se indica, mínimo 60; 10800 equivale a tres horas."
           }
         },
         "additionalProperties": false,

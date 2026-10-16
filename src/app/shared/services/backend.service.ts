@@ -5,7 +5,6 @@ import { Firestore, CollectionReference, collection, collectionData, setDoc, doc
 import { Observable, Subscription } from 'rxjs';
 import { Config, VideoItem, DriveFile, ZoomBotJoinRequest } from '../interfaces';
 import { ZoomBotService } from './zoom-bot.service';
-import { HomeStateService } from '../../pages/home/home-state.service';
 
 @Injectable({
   providedIn: 'root',
@@ -14,7 +13,6 @@ import { HomeStateService } from '../../pages/home/home-state.service';
 export class BackendService {
   private firestore = inject(Firestore);
   private zoom = inject(ZoomBotService);
-  readonly state = inject(HomeStateService);
   videos$: Observable<VideoItem[]>;
   videosCollection: CollectionReference;
   dataCollection: CollectionReference;
@@ -26,7 +24,6 @@ export class BackendService {
     private http: HttpClient,
     private loading: LoadingService,
     //private zoom: ZoomBotService,
-    //private state: HomeStateService,
   ) {
     this.videosCollection = collection(this.firestore, 'videos');
     this.videos$ = collectionData(this.videosCollection) as Observable<VideoItem[]>;
@@ -50,13 +47,15 @@ export class BackendService {
     return this.http.post(`/videos/delete`, { videoData: item }).toPromise();
   }
 
-  createBot(meetingNumber: string, meetingPassword?: string, botName = 'Zoom Media Bot') {
+  createBot(
+    meetingNumber: string,
+    meetingPassword?: string,
+    botName = 'Zoom Media Bot',
+    options?: ZoomBotJoinRequest['options']
+  ) {
     const joinRequest: ZoomBotJoinRequest = {
       meeting: { number: meetingNumber, password: meetingPassword, participant_name: botName },
-      options: {
-        waiting_room_timeout_seconds: this.state.botWaitingRoomTimeoutSeconds,
-        max_session_seconds: this.state.botMaxSessionSeconds
-      }
+      options
     }
     return this.zoom.joinBot(joinRequest)
     //return this.http.post<{ id: string }>('/recall/create-bot', joinRequest);

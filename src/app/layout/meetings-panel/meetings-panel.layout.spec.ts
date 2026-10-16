@@ -47,18 +47,18 @@ describe('MeetingsPanelLayout', () => {
 
   it('should list the meetings in the selector', () => {
     component.meetings = [
-      { id: 'm1', title: 'Culto', url: 'https://zoom.us/j/1' },
-      { id: 'm2', url: 'https://zoom.us/j/2' },
+      { id: 'm1', title: 'Culto', number: '123456789' },
+      { id: 'm2', number: '987654321' },
     ];
     fixture.detectChanges();
     const options = Array.from(el.querySelectorAll('select option')).map(o => o.textContent?.trim());
-    expect(options).toEqual(['-- Selecciona --', 'Culto · https://zoom.us/j/1', 'https://zoom.us/j/2']);
+    expect(options).toEqual(['-- Selecciona --', 'Culto · 123456789', '987654321']);
   });
 
-  it('should disable "Crear bot" until a meeting with url is selected', () => {
+  it('should disable "Crear bot" until a meeting with number is selected', () => {
     expect(buttonByText('Crear bot y unir').disabled).toBeTrue();
 
-    component.meetings = [{ id: 'm1', url: 'https://zoom.us/j/1' }];
+    component.meetings = [{ id: 'm1', number: '123456789' }];
     component.selectedMeetingId.set('m1');
     fixture.detectChanges();
     expect(buttonByText('Crear bot y unir').disabled).toBeFalse();
@@ -71,11 +71,18 @@ describe('MeetingsPanelLayout', () => {
     expect(el.textContent).toContain('bot-42');
   });
 
-  it('should handle bot and meeting actions in the layout', () => {
+  it('should handle bot and meeting actions in the layout', async () => {
     const removeSpy = spyOn(component, 'removeBot').and.returnValue(Promise.resolve());
     const addSpy = spyOn(component, 'addMeeting').and.returnValue(Promise.resolve());
 
     buttonByText('Retirar bot').click();
+
+    const urlInput = el.querySelector('#new-meeting-number') as HTMLInputElement;
+    urlInput.value = 'https://zoom.us/j/1234567890';
+    urlInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
     buttonByText('Añadir').click();
 
     expect(removeSpy).toHaveBeenCalled();
@@ -149,8 +156,8 @@ describe('MeetingsPanelLayout', () => {
   it('should restore cached meeting id from localStorage when valid', () => {
     spyOn(localStorage, 'getItem').and.returnValue('meeting-xyz');
 
-    const meeting1 = { id: 'meeting-xyz', title: 'Cached', url: 'https://zoom.us/1' };
-    const meeting2 = { id: 'meeting-other', title: 'Other', url: 'https://zoom.us/2' };
+    const meeting1 = { id: 'meeting-xyz', title: 'Cached', number: '123456789' };
+    const meeting2 = { id: 'meeting-other', title: 'Other', number: '987654321' };
 
     const meetingsSubject = new Subject<any[]>();
     mocks.meetings.meetings$ = meetingsSubject.asObservable();
@@ -168,8 +175,8 @@ describe('MeetingsPanelLayout', () => {
   it('should fall back to first meeting when cached id is not found', () => {
     spyOn(localStorage, 'getItem').and.returnValue('stale-id');
 
-    const meeting1 = { id: 'meeting-first', title: 'First', url: 'https://zoom.us/1' };
-    const meeting2 = { id: 'meeting-second', title: 'Second', url: 'https://zoom.us/2' };
+    const meeting1 = { id: 'meeting-first', title: 'First', number: '123456789' };
+    const meeting2 = { id: 'meeting-second', title: 'Second', number: '987654321' };
 
     const meetingsSubject = new Subject<any[]>();
     mocks.meetings.meetings$ = meetingsSubject.asObservable();
@@ -187,7 +194,7 @@ describe('MeetingsPanelLayout', () => {
     expect(localStorage.setItem).toHaveBeenCalledWith('selectedMeetingId', 'meeting-first');
   });
   it('should confirm the selected meeting name and delete its Firestore document', async () => {
-    component.meetings = [{ id: 'm1', title: 'Culto', url: 'https://zoom.us/j/1' }];
+    component.meetings = [{ id: 'm1', title: 'Culto', number: '123456789' }];
     component.selectMeeting('m1');
     await component.deleteMeeting();
     expect(mocks.modal.confirm).toHaveBeenCalledWith('Eliminar reunión', '¿Deseas borrar la reunión “Culto”?');
@@ -196,17 +203,17 @@ describe('MeetingsPanelLayout', () => {
   });
 
   it('should leave the meeting intact when confirmation is cancelled', async () => {
-    component.meetings = [{ id: 'm1', url: 'https://zoom.us/j/1' }];
+    component.meetings = [{ id: 'm1', number: '123456789' }];
     component.selectMeeting('m1');
     mocks.modal.confirm.and.resolveTo(false);
     await component.deleteMeeting();
-    expect(mocks.modal.confirm).toHaveBeenCalledWith('Eliminar reunión', '¿Deseas borrar la reunión “https://zoom.us/j/1”?');
+    expect(mocks.modal.confirm).toHaveBeenCalledWith('Eliminar reunión', '¿Deseas borrar la reunión “123456789”?');
     expect(mocks.meetings.deleteMeeting).not.toHaveBeenCalled();
     expect(component.isDeletingMeeting()).toBeFalse();
   });
 
   it('should show deletion failures and allow retrying', async () => {
-    component.meetings = [{ id: 'm1', url: 'https://zoom.us/j/1' }];
+    component.meetings = [{ id: 'm1', number: '123456789' }];
     component.selectMeeting('m1');
     mocks.meetings.deleteMeeting.and.rejectWith(new Error('No se pudo eliminar'));
     await component.deleteMeeting();
@@ -228,4 +235,45 @@ describe('MeetingsPanelLayout', () => {
     expect(component.selectedMeetingId()).toBe('');
     expect(localStorage.getItem('selectedMeetingId')).toBe('');
   });
+  it('should pass bot timeout settings from the page state to the backend', async () => {
+    component.meetings = [{ id: 'm1', number: '123456789' }];
+    component.selectMeeting('m1');
+    state.botWaitingRoomTimeoutSeconds = 120;
+    state.botMaxSessionSeconds = 3600;
+
+    await component.createBot();
+
+    expect(mocks.backend.createBot).toHaveBeenCalledWith(
+      '123456789', undefined, undefined,
+      { waiting_room_timeout_seconds: 120, max_session_seconds: 3600 }
+    );
+  });
+
+  it('should convert url and save meeting when addMeeting succeeds', async () => {
+    const dialogMock = { close: jasmine.createSpy('close') } as unknown as HTMLDialogElement;
+    component.newTitle = 'Reunión semanal';
+    component.newMeetingUrl = 'https://zoom.us/j/1234567890';
+    component.newMeetingPassword = 'secret';
+
+    mocks.meetings.convertUrl.and.returnValue('1234567890');
+
+    await component.addMeeting(dialogMock);
+
+    expect(mocks.meetings.convertUrl).toHaveBeenCalledWith('https://zoom.us/j/1234567890');
+    expect(mocks.meetings.addMeeting).toHaveBeenCalledWith('Reunión semanal', '1234567890', 'secret');
+    expect(component.newTitle).toBe('');
+    expect(component.newMeetingUrl).toBe('');
+    expect(component.newMeetingPassword).toBe('');
+    expect(dialogMock.close).toHaveBeenCalled();
+  });
+
+  it('should set state.err when addMeeting fails', async () => {
+    component.newMeetingUrl = 'invalid-url';
+    mocks.meetings.convertUrl.and.throwError(new Error('Pega una URL válida de Zoom'));
+
+    await component.addMeeting();
+
+    expect(state.err).toBe('Pega una URL válida de Zoom');
+  });
 });
+

@@ -5,7 +5,7 @@ import { Firestore } from '@angular/fire/firestore';
 import { of } from 'rxjs';
 import { BackendService } from '../../../shared/services/backend.service';
 import { MeetingsService } from '../../../shared/services/meetings.service';
-import { ZoomService } from '../../../shared/services/zoom.service';
+import { ZoomBotService } from '../../../shared/services/zoom-bot.service';
 import { VideoListsService } from '../../../shared/services/video-lists.service';
 import { ModalService } from '../../../shared/services/modal.service';
 import { LoadingService } from '../../../shared/services/loading.service';
@@ -54,6 +54,7 @@ export function createHomeServiceMocks(): HomeServiceMocks {
     },
     meetings: {
       meetings$: of([]),
+      convertUrl: jasmine.createSpy('convertUrl').and.callFake((url: string) => url),
       addMeeting: jasmine.createSpy('addMeeting').and.returnValue(Promise.resolve()),
       deleteMeeting: jasmine.createSpy('deleteMeeting').and.returnValue(Promise.resolve()),
     },
@@ -83,7 +84,7 @@ export function provideHomeServiceMocks(mocks: HomeServiceMocks): Provider[] {
     { provide: BackendService, useValue: mocks.backend },
     { provide: MeetingsService, useValue: mocks.meetings },
     { provide: VideoListsService, useValue: mocks.videoLists },
-    { provide: ZoomService, useValue: mocks.zoom },
+    { provide: ZoomBotService, useValue: mocks.zoom },
     { provide: ModalService, useValue: mocks.modal },
     { provide: LoadingService, useValue: mocks.loading },
   ];

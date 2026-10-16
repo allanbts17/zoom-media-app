@@ -148,7 +148,7 @@ describe('HomePage', () => {
     const panel = fixture.debugElement.query(By.directive(MeetingsPanelLayout)).componentInstance as MeetingsPanelLayout;
     const table = fixture.debugElement.query(By.directive(VideosTableLayout)).componentInstance as VideosTableLayout;
     const actions = fixture.debugElement.query(By.directive(GlobalActionsLayout)).componentInstance as GlobalActionsLayout;
-    panel.meetings = [{ id: 'm1', url: 'https://zoom.us/j/1' }];
+    panel.meetings = [{ id: 'm1', number: '123456789' }];
     panel.selectMeeting('m1');
     await panel.createBot();
     expect(mocks.backend.createBot).toHaveBeenCalledWith('https://zoom.us/j/1');

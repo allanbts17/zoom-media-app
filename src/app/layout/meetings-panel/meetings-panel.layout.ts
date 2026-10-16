@@ -6,7 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MeetingsService } from '../../shared/services/meetings.service';
 import { BackendService } from '../../shared/services/backend.service';
 import { ModalService } from '../../shared/services/modal.service';
-import { Meeting } from '../../shared/interfaces';
+import { Meeting, ZoomBotJoinRequest } from '../../shared/interfaces';
 
 /** Zoom meeting selection, bot controls, add meeting and add videos (local / Drive search). */
 @Component({
@@ -28,8 +28,7 @@ export class MeetingsPanelLayout implements OnInit {
   static readonly MEETING_CACHE_KEY = 'selectedMeetingId';
   selectedMeetingId = signal<string>(localStorage.getItem(MeetingsPanelLayout.MEETING_CACHE_KEY) ?? '');
   newTitle = '';
-  newUrl = '';
-  newMeetingNumber = '';
+  newMeetingUrl = '';
   newMeetingPassword = '';
   isUploading = false;
   isMeetingsCollapsed = signal<boolean>(false);
@@ -46,8 +45,9 @@ export class MeetingsPanelLayout implements OnInit {
   async addMeeting(dialog?: HTMLDialogElement) {
     this.state.err = '';
     try {
-      await this.meetingsService.addMeeting(this.newTitle, this.newUrl);
-      this.newTitle = ''; this.newUrl = '';
+      this.newMeetingUrl = this.meetingsService.convertUrl(this.newMeetingUrl)
+      await this.meetingsService.addMeeting(this.newTitle, this.newMeetingUrl, this.newMeetingPassword);
+      this.newTitle = ''; this.newMeetingPassword = ''; this.newMeetingUrl = '';
       dialog?.close();
     } catch (e: any) {
       this.state.err = e?.message ?? 'No se pudo añadir la reunión';
@@ -62,7 +62,7 @@ export class MeetingsPanelLayout implements OnInit {
     try {
       const confirmed = await this.modalService.confirm(
         'Eliminar reunión',
-        '¿Deseas borrar la reunión “' + (meeting.title?.trim() || meeting.url) + '”?'
+        '¿Deseas borrar la reunión “' + (meeting.title?.trim() || meeting.number) + '”?'
       );
       if (!confirmed) return;
       await this.meetingsService.deleteMeeting(meeting.id);
@@ -76,9 +76,13 @@ export class MeetingsPanelLayout implements OnInit {
   async createBot() {
     this.state.err = '';
     const meeting = this.meetingSelected();
-    if (!meeting?.url) { this.state.err = 'Selecciona o añade una reunión'; return; }
+    if (!meeting?.number) { this.state.err = 'Selecciona o añade una reunión'; return; }
     try {
-      const res = await this.backend.createBot(meeting.url).toPromise();
+      const options: ZoomBotJoinRequest['options'] = {
+        waiting_room_timeout_seconds: this.state.botWaitingRoomTimeoutSeconds,
+        max_session_seconds: this.state.botMaxSessionSeconds
+      }
+      const res = await this.backend.createBot(meeting.number, meeting.password || undefined, undefined, options).toPromise();
       console.log("createBot ZoomBotTicket", res)
       this.state.botId = String(res?.bot_id ?? '');
       this.state.updateConfig()

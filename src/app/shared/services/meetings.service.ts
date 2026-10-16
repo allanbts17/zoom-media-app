@@ -16,15 +16,22 @@ export class MeetingsService {
     this.meetings$ = collectionData(q, { idField: 'id' }) as Observable<Meeting[]>;
   }
 
-  async addMeeting(title: string, url: string): Promise<void> {
-    // Validación básica de zoom URL
-    if (!/^https?:\/\/([\w.-]+\.)?zoom\.us\/.+/i.test(url)) {
+  convertUrl(url: string) {
+    if (/^https?:\/\/([\w.-]+\.)?zoom\.us\/.+/i.test(url)) {
+      const parsed = new URL(url);
+      const meetingNumber = parsed.pathname.split('/')[2]
+      url = meetingNumber
+    } else {
       throw new Error('Pega una URL válida de Zoom');
     }
+    return url
+  }
 
+  async addMeeting(title: string, number: string, password: string): Promise<void> {
     const data = await addDoc(this.meetingsCollection, {
       title: title?.trim() || null,
-      url,
+      number: number,
+      password: password || null,
       createdAt: serverTimestamp(),
     });
     console.log('Meeting added with ID:', data.id);

@@ -1,6 +1,7 @@
 export interface Meeting {
   id?: string;
   title?: string | null;
-  url: string;
+  number: string;
+  password?: string | null;
   createdAt?: any;
 }
