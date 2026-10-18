@@ -92,4 +92,17 @@ describe('ZoomBotService protocol', () => {
   it('rejects a route injection before constructing a request', () => {
     expect(() => service.getBot('../health')).toThrowError('ZOOM_BOT_INVALID_ID');
   });
+  it('reads VM state and its operation and sends authenticated start/stop orders', fakeAsync(() => {
+    service.getVm('operation-one').subscribe(); flushMicrotasks();
+    const state = http.expectOne('/zoom-bot/vm?operation=operation-one');
+    expect(state.request.headers.get('Authorization')).toBe('Bearer firebase-token'); state.flush({status:'TERMINATED'});
+    for (const action of ['start', 'stop'] as const) {
+      (action === 'start' ? service.startVm() : service.stopVm()).subscribe(); flushMicrotasks();
+      const req = http.expectOne('/zoom-bot/vm/' + action);
+      expect(req.request.method).toBe('POST'); expect(req.request.body).toEqual({});
+      expect(req.request.headers.get('Idempotency-Key')).toMatch(/^[a-f0-9-]{36}$/);
+      req.flush({status: action === 'start' ? 'PROVISIONING' : 'STOPPING'});
+    }
+  }));
+
 });

@@ -43,8 +43,8 @@ export function createHomeServiceMocks(): HomeServiceMocks {
       videos$: of([]),
       configData$: of({ botId: '', busyRow: '', playing: false, globalVideoOrder: [] }),
       setConfig: jasmine.createSpy('setConfig').and.returnValue(Promise.resolve()),
-      createBot: jasmine.createSpy('createBot').and.returnValue(of({ id: 'bot123' })),
-      removeBot: jasmine.createSpy('removeBot').and.returnValue(of({ id: 'bot123' })),
+      createBot: jasmine.createSpy('createBot').and.returnValue(of({ bot_id: 'bot123', operation_id: 'operation123', status: 'queued' })),
+      removeBot: jasmine.createSpy('removeBot').and.returnValue(of({ bot_id: 'bot123', operation_id: 'operation123', status: 'queued' })),
       outputMedia: jasmine.createSpy('outputMedia').and.returnValue(of({})),
       stopMedia: jasmine.createSpy('stopMedia').and.returnValue(of({})),
       uploadVideo: jasmine.createSpy('uploadVideo').and.returnValue(Promise.resolve()),
@@ -65,6 +65,12 @@ export function createHomeServiceMocks(): HomeServiceMocks {
       deleteList: jasmine.createSpy('deleteList').and.returnValue(Promise.resolve()),
     },
     zoom: {
+      getVm: jasmine.createSpy('getVm').and.returnValue(of({ name: 'zoom-bot-vm', status: 'RUNNING' })),
+      startVm: jasmine.createSpy('startVm').and.returnValue(of({ name: 'zoom-bot-vm', status: 'PROVISIONING', operation: { name: 'vm-start-op', status: 'PENDING', error: null } })),
+      stopVm: jasmine.createSpy('stopVm').and.returnValue(of({ name: 'zoom-bot-vm', status: 'STOPPING', operation: { name: 'vm-stop-op', status: 'PENDING', error: null } })),
+      getReadiness: jasmine.createSpy('getReadiness').and.returnValue(of({ status: 'ready' })),
+      getOperation: jasmine.createSpy('getOperation').and.returnValue(of({ status: 'succeeded', error: null })),
+      getBot: jasmine.createSpy('getBot').and.returnValue(of({ status: 'active', resource_released: false })),
       shareApp: jasmine.createSpy('shareApp').and.returnValue(Promise.resolve()),
     },
     modal: {

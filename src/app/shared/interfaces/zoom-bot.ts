@@ -99,3 +99,10 @@ export interface ZoomBotListQuery {
   status?: ZoomBotStatus;
 }
 export interface ZoomBotEventQuery { limit?: number; after_sequence?: number }
+
+export interface ZoomVmState {
+  name: string;
+  status: string;
+  operation?: { name: string; status: string; error: string | null };
+  no_op?: boolean;
+}

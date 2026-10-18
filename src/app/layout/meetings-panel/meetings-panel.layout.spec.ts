@@ -23,6 +23,8 @@ describe('MeetingsPanelLayout', () => {
     component = fixture.componentInstance;
     el = fixture.nativeElement;
     fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
   });
 
   const buttonByText = (text: string) =>
@@ -72,6 +74,8 @@ describe('MeetingsPanelLayout', () => {
   });
 
   it('should handle bot and meeting actions in the layout', async () => {
+    state.botId = 'bot123';
+    fixture.detectChanges();
     const removeSpy = spyOn(component, 'removeBot').and.returnValue(Promise.resolve());
     const addSpy = spyOn(component, 'addMeeting').and.returnValue(Promise.resolve());
 

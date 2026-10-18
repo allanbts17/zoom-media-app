@@ -1,11 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Auth } from '@angular/fire/auth';
-import { defer, Observable, switchMap } from 'rxjs';
+import { defer, Observable, switchMap, timeout } from 'rxjs';
 
 import {
   ZoomBot, ZoomBotCapacity, ZoomBotEventQuery, ZoomBotEvents, ZoomBotJoinRequest, ZoomBotList,
-  ZoomBotListQuery, ZoomBotMedia, ZoomBotOperation, ZoomBotReadiness, ZoomBotTicket,
+  ZoomVmState, ZoomBotListQuery, ZoomBotMedia, ZoomBotOperation, ZoomBotReadiness, ZoomBotTicket,
 } from '../interfaces';
 
 /** Client for our Express backend, which authenticates onward to Cloud Run. */
@@ -15,12 +15,25 @@ export class ZoomBotService {
   private readonly auth = inject(Auth);
   private readonly base = '/zoom-bot';
 
+  getVm(operation?: string): Observable<ZoomVmState> {
+    return this.request<ZoomVmState>('GET', '/vm', undefined, undefined,
+      operation ? new HttpParams().set('operation', operation) : undefined).pipe(timeout(20000));
+  }
+
+  startVm(key = this.newIdempotencyKey()): Observable<ZoomVmState> {
+    return this.request<ZoomVmState>('POST', '/vm/start', {}, key).pipe(timeout(20000));
+  }
+
+  stopVm(key = this.newIdempotencyKey()): Observable<ZoomVmState> {
+    return this.request<ZoomVmState>('POST', '/vm/stop', {}, key).pipe(timeout(20000));
+  }
+
   getLiveness(): Observable<{ status: 'ok' }> {
     return this.request('GET', '/health/live');
   }
 
   getReadiness(): Observable<ZoomBotReadiness> {
-    return this.request('GET', '/health/ready');
+    return this.request<ZoomBotReadiness>('GET', '/health/ready').pipe(timeout(10000));
   }
 
   getCapacity(): Observable<ZoomBotCapacity> {

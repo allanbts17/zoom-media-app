@@ -1,0 +1,60 @@
+<main class="lab-shell">
+  <header class="lab-header">
+    <div><a routerLink="/home" class="back-link">← Zoom Media Controller</a><h1>Laboratorio de API</h1><p>Prueba los {{ endpoints.length }} endpoints de Zoom de tu backend.</p></div>
+    <span class="session-badge"><span aria-hidden="true">●</span> {{ username() }} · Firebase Auth</span>
+  </header>
+  <aside class="environment-note">Destino: <code>/zoom-bot</code> del backend. Cada petición usa tu sesión actual. Encender VM y Detener VM cambian su estado solo cuando envías esas peticiones. Si está apagada, las rutas que necesitan al agente pueden devolver <strong>503</strong>.</aside>
+  <div class="lab-grid">
+    <nav class="endpoints panel" aria-label="Endpoints de Zoom">
+      <h2>Endpoints <span>{{ endpoints.length }}</span></h2>
+      @for (endpoint of endpoints; track endpoint.id) {
+        <button type="button" [class.selected]="selected.id === endpoint.id" [attr.aria-current]="selected.id === endpoint.id ? 'true' : null" [disabled]="busy()" (click)="select(endpoint)">
+          <span class="method" [class.post]="endpoint.method === 'POST'" [class.delete]="endpoint.method === 'DELETE'">{{ endpoint.method }}</span>
+          <span><strong>{{ endpoint.title }}</strong><code>{{ endpoint.path }}</code></span>
+        </button>
+      }
+    </nav>
+    <div class="workspace">
+      <section class="panel request-panel" aria-labelledby="request-title">
+        <div class="section-heading"><div><h2 id="request-title">{{ selected.title }}</h2><p>{{ selected.description }}</p></div><span class="method" [class.post]="selected.method === 'POST'" [class.delete]="selected.method === 'DELETE'">{{ selected.method }}</span></div>
+        <form (ngSubmit)="execute()">
+          <fieldset [disabled]="busy()">
+            <div class="identifiers">
+              @if (needsBot) { <label>bot_id<input name="botId" [(ngModel)]="botId" placeholder="UUID del bot" autocomplete="off"></label> }
+              @if (needsOperation) { <label>operation_id<input name="operationId" [(ngModel)]="operationId" placeholder="UUID de la operación" autocomplete="off"></label> }
+            </div>
+            <label>Query string<input name="query" [(ngModel)]="query" placeholder="limit=10&cursor=..." autocomplete="off"></label>
+            <p class="hint">Puedes editar los valores para probar también validaciones y errores.</p>
+            @if (mutation) {
+              <label for="lab-key">Idempotency-Key</label><div class="input-action"><input id="lab-key" name="key" [(ngModel)]="idempotencyKey" autocomplete="off"><button type="button" (click)="newKey()">Nueva clave</button></div>
+              <p class="hint">Reintento de la misma orden: conserva clave y cuerpo. Para una orden distinta, genera otra clave. Enviar no cambia la clave automáticamente.</p>
+            }
+            @if (selected.method === 'POST') {
+              <div class="editor-toolbar"><label for="lab-body">Cuerpo de la petición</label><div><select name="example" aria-label="Ejemplo de petición" [(ngModel)]="example" (ngModelChange)="loadExample()">@for (name of examples; track name) { <option [value]="name">{{ name }}</option> }</select><button type="button" (click)="formatBody()">Formatear</button></div></div>
+              <textarea id="lab-body" name="body" [(ngModel)]="body" rows="13" spellcheck="false" autocomplete="off"></textarea>
+              <p class="hint">Se envía el texto tal como lo escribes, incluso si contiene JSON inválido. Los enlaces de medios de los ejemplos son marcadores: reemplázalos por tus archivos.</p>
+            }
+            <details class="headers-editor"><summary>Headers adicionales</summary><label for="lab-headers">Objeto JSON de headers</label><textarea id="lab-headers" name="headers" [(ngModel)]="extraHeaders" rows="3" spellcheck="false"></textarea><p class="hint">Authorization se añade desde Firebase; no tienes que pegar ningún bearer.</p></details>
+          </fieldset>
+          <div class="request-preview"><code>{{ selected.method }} {{ url }}</code><span>Authorization: Bearer [sesión Firebase]</span></div>
+          <div class="send-row"><p>Una respuesta <strong>202</strong> acepta la orden. Consulta su <code>operation_id</code> para conocer el resultado.</p>
+            @if (busy()) { <button type="button" (click)="cancel()">Dejar de esperar</button> }
+            <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Esperando respuesta…' : 'Enviar petición' }}</button>
+          </div>
+        </form>
+        @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+      </section>
+      <section class="panel response-panel" aria-labelledby="response-title" aria-live="polite" [attr.aria-busy]="busy()">
+        <div class="section-heading"><h2 id="response-title">Respuesta</h2>@if (response()) { <button type="button" (click)="clearResponse()">Limpiar</button> }</div>
+        @if (response(); as reply) {
+          <div class="response-meta"><strong [class.failed]="reply.status === 0 || reply.status >= 400">HTTP {{ reply.status }} {{ reply.statusText }}</strong><span>{{ reply.ms }} ms</span></div>
+          <pre tabindex="0" aria-label="Cuerpo de respuesta">{{ reply.body || '(sin cuerpo)' }}</pre>
+          <details><summary>Headers de respuesta</summary><pre tabindex="0">{{ reply.headers || '(sin headers disponibles)' }}</pre></details>
+          @if (operationId || botId || playbackId) {
+            <div class="captured-ids"><h3>Identificadores disponibles para la siguiente petición</h3>@if (botId) { <p>bot_id <code>{{ botId }}</code></p> }@if (operationId) { <p>operation_id <code>{{ operationId }}</code></p> }@if (playbackId) { <p>playback_id <code>{{ playbackId }}</code></p> }</div>
+          }
+        } @else { <p class="empty-response">{{ busy() ? 'Esperando la respuesta del backend…' : 'Selecciona un endpoint, prepara la petición y pulsa Enviar. Aquí aparecerán el código HTTP, el cuerpo completo y los headers.' }}</p> }
+      </section>
+    </div>
+  </div>
+</main>

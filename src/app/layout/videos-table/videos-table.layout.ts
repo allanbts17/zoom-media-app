@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CdkDrag, CdkDropList, CdkDragHandle, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HomeStateService } from '../../pages/home/home-state.service';
 import { BackendService } from '../../shared/services/backend.service';
-import { VideoItem } from '../../shared/interfaces';
+import { VideoItem, ZoomBotTicket } from '../../shared/interfaces';
 import { DurationPipe } from '../../shared/pipes/duration-pipe';
 
 /** Videos table with selection, drag & drop reordering and per-row playback. */
@@ -75,7 +75,11 @@ export class VideosTableLayout {
       if (v.duration == null) {
         try { v.duration = await this.loadDuration(v.videoUrl); } catch { }
       }
-      await this.backend.outputMedia(this.state.botId, v.videoUrl).toPromise();
+      const res: ZoomBotTicket = await this.backend.play(this.state.botId, 'video', v.videoUrl).toPromise() as ZoomBotTicket
+      console.log('Playback response: ', res)
+      this.state.playbackId = res?.playback_id as string;
+      this.state.updateConfig()
+      //await this.backend.outputMedia(this.state.botId, v.videoUrl).toPromise();
     } catch (e: any) {
       this.state.err = e?.message ?? 'Error reproduciendo';
     } finally {

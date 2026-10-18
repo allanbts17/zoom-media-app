@@ -1,1 +1,0 @@
-window.addEventListener('DOMContentLoaded', () => { SwaggerUIBundle({url:'/api-docs/openapi.json',dom_id:'#swagger-ui',deepLinking:true,filter:true,docExpansion:'list',defaultModelsExpandDepth:0,supportedSubmitMethods:[],validatorUrl:null,persistAuthorization:false,queryConfigEnabled:false}); });

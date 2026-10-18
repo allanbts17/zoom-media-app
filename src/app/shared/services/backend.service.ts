@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { LoadingService } from './loading.service';
 import { Firestore, CollectionReference, collection, collectionData, setDoc, doc, docData, DocumentData } from '@angular/fire/firestore';
 import { Observable, Subscription } from 'rxjs';
-import { Config, VideoItem, DriveFile, ZoomBotJoinRequest } from '../interfaces';
+import { Config, VideoItem, DriveFile, ZoomBotJoinRequest, ZoomBotMedia } from '../interfaces';
 import { ZoomBotService } from './zoom-bot.service';
 
 @Injectable({
@@ -68,13 +68,27 @@ export class BackendService {
     // });
   }
 
-  outputMedia(botId: string, url: string) {
-    return this.http.post('/recall/output-media', { bot_id: botId, url });
+  play(botId: string, type: ZoomBotMedia['type'], url: string, imageDuration: number = 60) {
+    if (type == 'video') return this.zoom.play(botId, { type, url, audio_enabled: true })
+    if (type == 'audio') return this.zoom.play(botId, { type, url })
+    else return this.zoom.play(botId, { type, url, duration_seconds: imageDuration })
   }
 
-  stopMedia(botId: string) {
-    return this.http.delete('/recall/output-media', { params: { bot_id: botId } });
+  pause(botId: string, playbackId: string) {
+    return this.zoom.pause(botId, playbackId)
   }
+
+  resume(botId: string, playbackId: string) {
+    return this.zoom.resume(botId, playbackId)
+  }
+
+  stop(botId: string, playbackId: string) {
+    return this.zoom.stop(botId, playbackId)
+  }
+
+  // stopMedia(botId: string) {
+  //   return this.http.delete('/recall/output-media', { params: { bot_id: botId } });
+  // }
 
   async uploadVideo(file: File) {
     const response = (await this.http.post('/videos/upload-url', { filename: file.name }).toPromise()) as { uploadUrl: string };

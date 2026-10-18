@@ -6,6 +6,7 @@ import { BackendService } from '../../shared/services/backend.service';
 import { LoadingService } from '../../shared/services/loading.service';
 import { ModalService } from '../../shared/services/modal.service';
 import { VideoListsService } from '../../shared/services/video-lists.service';
+import { ZoomBotAction } from '../../shared/interfaces';
 
 /** Stop playback, active list selector/delete and reorder controls. */
 @Component({
@@ -85,13 +86,34 @@ export class GlobalActionsLayout {
     }
   }
 
+  async togglePause() {
+    if (!this.state.botId) return;
+    try {
+      if (this.state.botAction == 'play' || this.state.botAction == 'resume') {
+        const res = await this.backend.pause(this.state.botId, this.state.playbackId).toPromise()
+        this.state.botAction = res?.action as ZoomBotAction
+      } else {
+        const res = await this.backend.resume(this.state.botId, this.state.playbackId).toPromise()
+        this.state.botAction = res?.action as ZoomBotAction
+      }
+      this.state.updateConfig()
+    } catch (e: any) {
+      this.state.err = e?.message ?? 'Error deteniendo';
+    }
+  }
+
   async stopNow() {
     if (!this.state.botId) return;
     try {
-      await this.backend.stopMedia(this.state.botId).toPromise();
+      const res = await this.backend.stop(this.state.botId, this.state.playbackId).toPromise()
+      this.state.botAction = res?.action as ZoomBotAction
+
+      // await this.backend.stopMedia(this.state.botId).toPromise();
     } catch (e: any) {
       this.state.err = e?.message ?? 'Error deteniendo';
     } finally {
+      this.state.botAction = 'stop';
+      this.state.playbackId = ''
       this.state.playing = false;
       this.state.updateConfig()
     }

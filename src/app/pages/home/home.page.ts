@@ -1,6 +1,6 @@
 import { Component, DestroyRef, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
 import { UserMenuComponent } from '../../shared/components/user-menu/user-menu.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -17,7 +17,7 @@ import { ZoomBotService } from '../../shared/services/zoom-bot.service';
 @Component({
   selector: 'app-home',
   imports: [CommonModule, MeetingsPanelLayout, GlobalActionsLayout, SelectionBarLayout,
-    VideosTableLayout, DriveImportLayout, UserMenuComponent],
+    VideosTableLayout, DriveImportLayout, UserMenuComponent, RouterLink],
   providers: [HomeStateService],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css'
