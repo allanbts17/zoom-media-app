@@ -77,6 +77,7 @@ export class VideosTableLayout {
       }
       const res: ZoomBotTicket = await this.backend.play(this.state.botId, 'video', v.videoUrl).toPromise() as ZoomBotTicket
       console.log('Playback response: ', res)
+      this.state.botAction = res.action
       this.state.playbackId = res?.playback_id as string;
       this.state.updateConfig()
       //await this.backend.outputMedia(this.state.botId, v.videoUrl).toPromise();

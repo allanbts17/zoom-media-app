@@ -338,7 +338,7 @@
             }
           },
           "409": {
-            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
             "content": {
               "application/json": {
                 "schema": {
@@ -847,7 +847,7 @@
             }
           },
           "409": {
-            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
             "content": {
               "application/json": {
                 "schema": {
@@ -1110,7 +1110,7 @@
             }
           },
           "409": {
-            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
             "content": {
               "application/json": {
                 "schema": {
@@ -1201,7 +1201,7 @@
         "tags": [
           "Reproducción"
         ],
-        "description": "Bot active y reproducción anterior detenida/terminada. Descarga y valida antes de emitir. El playback_id se asigna al aceptar. Succeeded confirma los primeros envíos requeridos, no el fin del clip. Video/audio se reproducen una vez.",
+        "description": "Bot active. Un nuevo play detiene y reemplaza el medio actual sin salir de la reunión. Si otro play sigue pendiente, se cancela y prevalece el último aceptado. Detiene antes de descargar: si el archivo nuevo falla, el bot queda conectado sin reproducir. El playback_id se asigna al aceptar. Succeeded confirma los primeros envíos requeridos, no el fin del clip. Video/audio se reproducen una vez.",
         "security": [
           {
             "BearerAuth": []
@@ -1363,7 +1363,7 @@
             }
           },
           "409": {
-            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
             "content": {
               "application/json": {
                 "schema": {
@@ -1616,7 +1616,7 @@
             }
           },
           "409": {
-            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
             "content": {
               "application/json": {
                 "schema": {
@@ -1869,7 +1869,7 @@
             }
           },
           "409": {
-            "description": "CAPACITY_EXCEEDED; conflictos también incluyen PLAYBACK_BUSY, INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
+            "description": "CAPACITY_EXCEEDED; conflictos también incluyen INVALID_STATE, PLAYBACK_CHANGED, PLAYBACK_BLOCKED, OPERATION_IN_PROGRESS e IDEMPOTENCY_CONFLICT",
             "content": {
               "application/json": {
                 "schema": {
