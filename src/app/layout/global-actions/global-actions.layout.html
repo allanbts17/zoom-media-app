@@ -8,12 +8,18 @@
     </svg>
   </button>
   <button class="p-2.5 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50 transition-colors inline-flex items-center justify-center"
-          (click)="togglePause()" [disabled]="!state.botId"
+          (click)="togglePause()" [disabled]="!utils.canPauseResume(state)"
           title="Pausa" aria-label="Pausa">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <rect x="6" y="4" width="4" height="16" rx="1" />
-      <rect x="14" y="4" width="4" height="16" rx="1" />
-    </svg>
+          @if (state.botAction == 'play' || state.botAction == 'resume') {
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1" />
+              <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+          } @else {
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          }
   </button>
 
   <div class="h-6 w-px bg-gray-400 dark:bg-white/20 mx-2"></div>

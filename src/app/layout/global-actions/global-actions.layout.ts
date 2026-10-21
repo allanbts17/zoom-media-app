@@ -7,6 +7,7 @@ import { LoadingService } from '../../shared/services/loading.service';
 import { ModalService } from '../../shared/services/modal.service';
 import { VideoListsService } from '../../shared/services/video-lists.service';
 import { ZoomBotAction } from '../../shared/interfaces';
+import { UtilsService } from '../../shared/services/utils.service';
 
 /** Stop playback, active list selector/delete and reorder controls. */
 @Component({
@@ -21,6 +22,7 @@ export class GlobalActionsLayout {
   private readonly loadingService = inject(LoadingService);
   private readonly confirmService = inject(ModalService);
   private readonly videoListsService = inject(VideoListsService);
+  protected readonly utils = inject(UtilsService);
 
   originalOrderBackup: string[] = [];
 
@@ -87,7 +89,7 @@ export class GlobalActionsLayout {
   }
 
   async togglePause() {
-    if (!this.state.botId) return;
+    if (!this.utils.canPauseResume(this.state)) return;
     try {
       if (this.state.botAction == 'play' || this.state.botAction == 'resume') {
         const res = await this.backend.pause(this.state.botId, this.state.playbackId).toPromise()
