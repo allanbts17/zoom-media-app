@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { LoadingService } from './loading.service';
 import { Firestore, CollectionReference, collection, collectionData, setDoc, doc, docData, DocumentData } from '@angular/fire/firestore';
 import { Observable, Subscription } from 'rxjs';
-import { Config, VideoItem, DriveFile, ZoomBotJoinRequest, ZoomBotMedia } from '../interfaces';
+import { Config, AudioItem, DocItem, VideoItem, DriveFile, ZoomBotJoinRequest, ZoomBotMedia } from '../interfaces';
 import { ZoomBotService } from './zoom-bot.service';
 
 @Injectable({
@@ -13,6 +13,8 @@ import { ZoomBotService } from './zoom-bot.service';
 export class BackendService {
   private firestore = inject(Firestore);
   private zoom = inject(ZoomBotService);
+  docs$ = collectionData(collection(this.firestore, 'docs')) as Observable<DocItem[]>;
+  audios$ = collectionData(collection(this.firestore, 'audios')) as Observable<AudioItem[]>;
   videos$: Observable<VideoItem[]>;
   videosCollection: CollectionReference;
   dataCollection: CollectionReference;
@@ -36,7 +38,7 @@ export class BackendService {
   }
 
   setConfig(config: Config) {
-    return setDoc(this.configRef, config);
+    return setDoc(this.configRef, config, { merge: true });
   }
 
   listVideos() {
@@ -104,6 +106,17 @@ export class BackendService {
       throw new Error(`Fallo subiendo a GCS: ${put.status} ${txt}`);
     }
   }
+
+  async uploadAudio(file: File) {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!['mp3', 'wav'].includes(extension ?? '')) throw new Error('Solo se permiten MP3 y WAV');
+    const contentType = extension === 'mp3' ? 'audio/mpeg' : 'audio/wav';
+    const response = await this.http.post<{ uploadUrl: string }>('/audios/upload-url', { filename: file.name }).toPromise();
+    if (!response) throw new Error('No se pudo preparar la subida');
+    const result = await fetch(response.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file });
+    if (!result.ok) throw new Error('Error subiendo audio: ' + result.status);
+  }
+  deleteAudio(audioPath: string) { return this.http.post('/audios/delete', { audioPath }).toPromise(); }
 
   listDriveFiles() {
     return this.http.get<{ files: DriveFile[] }>('/drive/files');

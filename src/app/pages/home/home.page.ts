@@ -1,6 +1,6 @@
 import { Component, DestroyRef, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
 import { UserMenuComponent } from '../../shared/components/user-menu/user-menu.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -10,14 +10,14 @@ import { VideoListsService } from '../../shared/services/video-lists.service';
 import { MeetingsPanelLayout } from '../../layout/meetings-panel/meetings-panel.layout';
 import { GlobalActionsLayout } from '../../layout/global-actions/global-actions.layout';
 import { SelectionBarLayout } from '../../layout/selection-bar/selection-bar.layout';
-import { VideosTableLayout } from '../../layout/videos-table/videos-table.layout';
-import { DriveImportLayout } from '../../layout/drive-import/drive-import.layout';
+import { MediaTableLayout } from '../../layout/media-table/media-table.layout';
+
 import { ZoomBotService } from '../../shared/services/zoom-bot.service';
 
 @Component({
   selector: 'app-home',
   imports: [CommonModule, MeetingsPanelLayout, GlobalActionsLayout, SelectionBarLayout,
-    VideosTableLayout, DriveImportLayout, UserMenuComponent, RouterLink],
+    MediaTableLayout, UserMenuComponent],
   providers: [HomeStateService],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css'
@@ -39,6 +39,10 @@ export class HomePage implements OnInit {
   }
 
   ngOnInit() {
+    this.backend.audios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: list => { this.state.audios = list; this.state.audioLoading = false; },
+      error: error => { this.state.err = error?.message ?? 'Error cargando audios'; this.state.audioLoading = false; }
+    });
     this.backend.videos$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: list => { this.state.videos = list; this.state.loading = false; },
       error: error => { this.state.err = error?.message ?? 'Error cargando videos'; this.state.loading = false; },
@@ -49,13 +53,14 @@ export class HomePage implements OnInit {
         this.state.busyRow = config?.busyRow ?? '';
         this.state.playing = config?.playing ?? false;
         this.state.globalVideoOrder = config?.globalVideoOrder ?? [];
+        this.state.globalAudioOrder = config?.globalAudioOrder ?? [];
         this.state.botMaxSessionSeconds = config?.botMaxSessionSeconds as number;
         this.state.botWaitingRoomTimeoutSeconds = config?.botWaitingRoomTimeoutSeconds as number;
       },
       error: error => this.state.err = error?.message ?? 'Error cargando configuración',
     });
     this.videoListsService.lists$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: lists => this.state.videoLists = lists,
+      next: lists => { this.state.videoLists = lists; console.log('videoLists: ', lists); },
       error: error => this.state.err = error?.message ?? 'Error leyendo listas',
     });
   }

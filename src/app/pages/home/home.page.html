@@ -8,7 +8,7 @@ flex flex-col overflow-y-auto custom-scrollbar
       <app-user-menu class="shrink-0"></app-user-menu>
     </header>
 
-  <app-meetings-panel (driveRequested)="driveImport.loadDriveFiles(true)"></app-meetings-panel>
+  <app-meetings-panel (driveRequested)="mediaTable.openDrive()"></app-meetings-panel>
 
   <app-global-actions></app-global-actions>
 
@@ -20,11 +20,11 @@ flex flex-col overflow-y-auto custom-scrollbar
   </div>
 
 
-  <app-videos-table></app-videos-table>
+  <app-media-table #mediaTable></app-media-table>
 
-  <app-drive-import #driveImport></app-drive-import>
 
-  <p class="flex-none mt-3 text-xs text-gray-500 dark:text-gray-400">
+
+  <!-- <p class="flex-none mt-3 text-xs text-gray-500 dark:text-gray-400">
     Tip: "Duración" se calcula con metadatos del video sin descargar el archivo completo.
-  </p>
+  </p> -->
 </main>

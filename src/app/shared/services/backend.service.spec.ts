@@ -1,3 +1,5 @@
+import { of } from 'rxjs';
+import { ZoomBotService } from './zoom-bot.service';
 import { TestBed } from '@angular/core/testing';
 import { BackendService } from './backend.service';
 import { provideHttpClient } from '@angular/common/http';
@@ -10,10 +12,12 @@ describe('BackendService', () => {
   let service: BackendService;
   let httpTestingController: HttpTestingController;
 
+  const zoom = {play:jasmine.createSpy('play').and.returnValue(of({}))};
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
         BackendService,
+        {provide:ZoomBotService,useValue:zoom},
         provideHttpClient(),
         provideHttpClientTesting(),
         provideFirebaseApp(() => initializeApp({ projectId: 'test', appId: '1:123:web:123', apiKey: 'test' })),
@@ -49,35 +53,22 @@ describe('BackendService', () => {
     req.flush({});
   });
 
-  it('should make POST request for createBot', () => {
-    service.createBot('http://test.com', 'Test Bot').subscribe();
-    const req = httpTestingController.expectOne('/recall/create-bot');
-    expect(req.request.method).toEqual('POST');
-    expect(req.request.body).toEqual({ meeting_url: 'http://test.com', bot_name: 'Test Bot' });
-    req.flush({ id: 'bot123' });
+  it('sends audio media to the bot', () => {
+    service.play('bot123','audio','https://audio/a.mp3').subscribe();
+    expect(zoom.play).toHaveBeenCalledWith('bot123',{type:'audio',url:'https://audio/a.mp3'});
   });
-
-  it('should make POST request for removeBot', () => {
-    service.removeBot('bot123').subscribe();
-    const req = httpTestingController.expectOne('/recall/remove-bot');
-    expect(req.request.method).toEqual('POST');
-    expect(req.request.body).toEqual({ bot_id: 'bot123' });
-    req.flush({ id: 'bot123' });
+  it('uploads WAV with the same content type as the signed URL', async () => {
+    spyOn(window,'fetch').and.returnValue(Promise.resolve({ok:true} as Response));
+    const pending=service.uploadAudio(new File(['audio'],'a.wav',{type:'audio/x-wav'}));
+    await Promise.resolve();
+    const req=httpTestingController.expectOne('/audios/upload-url'); expect(req.request.body).toEqual({filename:'a.wav'}); req.flush({uploadUrl:'https://upload'});
+    await pending; expect(window.fetch).toHaveBeenCalledWith('https://upload',jasmine.objectContaining({headers:{'Content-Type':'audio/wav'}}));
   });
-
-  it('should make POST request for outputMedia', () => {
-    service.outputMedia('bot123', 'http://video.url').subscribe();
-    const req = httpTestingController.expectOne('/recall/output-media');
-    expect(req.request.method).toEqual('POST');
-    expect(req.request.body).toEqual({ bot_id: 'bot123', url: 'http://video.url' });
-    req.flush({});
+  it('rejects unsupported audio extensions before requesting upload', async () => {
+    await expectAsync(service.uploadAudio(new File(['audio'],'a.ogg'))).toBeRejectedWithError('Solo se permiten MP3 y WAV');
   });
-
-  it('should make DELETE request for stopMedia', () => {
-    service.stopMedia('bot123').subscribe();
-    const req = httpTestingController.expectOne('/recall/output-media?bot_id=bot123');
-    expect(req.request.method).toEqual('DELETE');
-    req.flush({});
+  it('deletes an audio by its storage path', async () => {
+    const pending=service.deleteAudio('audios/a.mp3'); const req=httpTestingController.expectOne('/audios/delete'); expect(req.request.body).toEqual({audioPath:'audios/a.mp3'}); req.flush({ok:true}); await pending;
   });
 
   // ── Google Drive tests ────────────────────────────────────────────────────

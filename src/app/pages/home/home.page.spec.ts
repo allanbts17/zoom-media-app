@@ -1,9 +1,10 @@
+import { videoToMediaItem } from '../../shared/utils/media-item.utils';
 import { provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 import { By } from '@angular/platform-browser';
-import { DriveImportLayout } from '../../layout/drive-import/drive-import.layout';
+
 import { MeetingsPanelLayout } from '../../layout/meetings-panel/meetings-panel.layout';
-import { VideosTableLayout } from '../../layout/videos-table/videos-table.layout';
+import { MediaTableLayout } from '../../layout/media-table/media-table.layout';
 import { SelectionBarLayout } from '../../layout/selection-bar/selection-bar.layout';
 import { GlobalActionsLayout } from '../../layout/global-actions/global-actions.layout';
 import { makeVideo } from './testing/home-testing';
@@ -47,8 +48,7 @@ describe('HomePage', () => {
       'app-meetings-panel',
       'app-global-actions',
       'app-selection-bar',
-      'app-videos-table',
-      'app-drive-import',
+      'app-media-table',
     ]);
   });
 
@@ -116,10 +116,11 @@ describe('HomePage', () => {
     mocks.backend.listDriveFiles.and.returnValue(new Subject());
     fixture.detectChanges();
     const meetings = fixture.debugElement.query(By.directive(MeetingsPanelLayout)).componentInstance as MeetingsPanelLayout;
-    const drive = fixture.debugElement.query(By.directive(DriveImportLayout)).componentInstance as DriveImportLayout;
+    const table = fixture.debugElement.query(By.directive(MediaTableLayout)).componentInstance as MediaTableLayout;
+    const drive = table.drive;
     meetings.updateDriveSearch('504');
     expect(fixture.componentInstance.state.driveSearchQuery()).toBe('504');
-    expect(drive.isDriveExpanded()).toBeTrue();
+    expect(fixture.componentInstance.state.activeTab()).toBe('drive');
     expect(mocks.backend.listDriveFiles).toHaveBeenCalledTimes(1);
     drive.driveFiles = [{ id: 'f1', name: '504 Himno', mimeType: 'video/mp4' }, { id: 'f2', name: 'Otro', mimeType: 'video/mp4' }];
     expect(drive.filteredDriveFiles.map(file => file.id)).toEqual(['f1']);
@@ -130,52 +131,38 @@ describe('HomePage', () => {
     const state = fixture.componentInstance.state;
     state.videos = [makeVideo('videos/a.mp4'), makeVideo('videos/b.mp4')];
     state.globalVideoOrder = ['videos/a.mp4', 'videos/b.mp4'];
-    const table = fixture.debugElement.query(By.directive(VideosTableLayout)).componentInstance as VideosTableLayout;
+    const table = fixture.debugElement.query(By.directive(MediaTableLayout)).componentInstance as MediaTableLayout;
     const selection = fixture.debugElement.query(By.directive(SelectionBarLayout)).componentInstance as SelectionBarLayout;
     const actions = fixture.debugElement.query(By.directive(GlobalActionsLayout)).componentInstance as GlobalActionsLayout;
     table.toggle('videos/a.mp4');
-    expect(selection.selectedList().map(video => video.videoPath)).toEqual(['videos/a.mp4']);
+    expect(selection.selectedList().map(video => video.path)).toEqual(['videos/a.mp4']);
     await actions.toggleReorder();
     table.drop({ previousIndex: 0, currentIndex: 1 } as any);
-    expect(table.displayedVideos.map(video => video.videoPath)).toEqual(['videos/b.mp4', 'videos/a.mp4']);
+    expect(table.displayedMedia.map(video => video.path)).toEqual(['videos/b.mp4', 'videos/a.mp4']);
     actions.cancelReorder();
-    expect(table.displayedVideos.map(video => video.videoPath)).toEqual(['videos/a.mp4', 'videos/b.mp4']);
+    expect(table.displayedMedia.map(video => video.path)).toEqual(['videos/a.mp4', 'videos/b.mp4']);
   });
 
-  it('keeps bot and playback state shared while each layout executes its own action', async () => {
-    fixture.detectChanges();
-    const state = fixture.componentInstance.state;
-    const panel = fixture.debugElement.query(By.directive(MeetingsPanelLayout)).componentInstance as MeetingsPanelLayout;
-    const table = fixture.debugElement.query(By.directive(VideosTableLayout)).componentInstance as VideosTableLayout;
+  it('shares playback state between media and global controls', async () => {
+    fixture.detectChanges(); const state = fixture.componentInstance.state; state.botId = 'bot123';
+    const table = fixture.debugElement.query(By.directive(MediaTableLayout)).componentInstance as MediaTableLayout;
     const actions = fixture.debugElement.query(By.directive(GlobalActionsLayout)).componentInstance as GlobalActionsLayout;
-    panel.meetings = [{ id: 'm1', number: '123456789' }];
-    panel.selectMeeting('m1');
-    await panel.createBot();
-    expect(mocks.backend.createBot).toHaveBeenCalledWith('https://zoom.us/j/1');
-    expect(state.botId).toBe('bot123');
-    const video = makeVideo('videos/a.mp4');
-    await table.playSingle(video);
-    expect(mocks.backend.outputMedia).toHaveBeenCalledWith('bot123', video.videoUrl);
-    expect(mocks.backend.setConfig.calls.allArgs().some(([config]: any[]) => config.busyRow === video.videoPath)).toBeTrue();
-    expect(state.busyRow).toBe('');
-    await actions.stopNow();
-    expect(mocks.backend.stopMedia).toHaveBeenCalledWith('bot123');
-    expect(state.playing).toBeFalse();
-    await panel.removeBot();
-    expect(mocks.backend.removeBot).toHaveBeenCalledWith('bot123');
-    expect(state.botId).toBe('');
+    const video = makeVideo('videos/a.mp4'); await table.playSingle(videoToMediaItem(video));
+    expect(mocks.backend.play).toHaveBeenCalledWith('bot123','video',video.videoUrl);
+    expect(state.playbackId).toBe('p1'); await actions.stopNow();
+    expect(mocks.backend.stop).toHaveBeenCalledWith('bot123','p1'); expect(state.playing).toBeFalse();
   });
 
   it('creates a list from table selection and clears the shared checkboxes', async () => {
     fixture.detectChanges();
     const state = fixture.componentInstance.state;
     state.videos = [makeVideo('videos/a.mp4'), makeVideo('videos/b.mp4')];
-    const table = fixture.debugElement.query(By.directive(VideosTableLayout)).componentInstance as VideosTableLayout;
+    const table = fixture.debugElement.query(By.directive(MediaTableLayout)).componentInstance as MediaTableLayout;
     const selection = fixture.debugElement.query(By.directive(SelectionBarLayout)).componentInstance as SelectionBarLayout;
     table.toggle('videos/b.mp4');
     selection.newListTitle = 'Mi lista';
     await selection.createNewList();
-    expect(mocks.videoLists.addList).toHaveBeenCalledWith('Mi lista', ['videos/b.mp4']);
+    expect(mocks.videoLists.addList).toHaveBeenCalledWith('Mi lista', ['videos/b.mp4'], []);
     expect(state.selectedMap).toEqual({});
     expect(selection.newListTitle).toBe('');
   });

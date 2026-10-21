@@ -93,4 +93,32 @@ describe('SelectionBarLayout', () => {
     expect(deleteSpy).toHaveBeenCalled();
   });
 
+  it('creates an audio-only list', async () => {
+    state.activeTab.set('audios'); state.audios=[{audioPath:'audios/a.mp3',audioUrl:'a',duration:1}]; state.selectedMap={'audios/a.mp3':true}; component.newListTitle='Audio';
+    await component.createNewList(); expect(mocks.videoLists.addList).toHaveBeenCalledWith('Audio',[],['audios/a.mp3']);
+  });
+  it('adds audio without overwriting other list segments', async () => {
+    state.activeTab.set('audios'); state.audios=[{audioPath:'audios/a.mp3',audioUrl:'a',duration:1}]; state.selectedMap={'audios/a.mp3':true};
+    state.videoLists=[{id:'mixed',name:'Mixed',videoPaths:['videos/a.mp4'],docPaths:['docs/a.pptx']}];
+    await component.addSelectedToList('mixed'); expect(mocks.videoLists.updateList).toHaveBeenCalledWith('mixed',{audioPaths:['audios/a.mp3']});
+  });
+  it('removes audio without removing the list or its documents', async () => {
+    state.activeTab.set('audios'); state.activeListId.set('mixed'); state.audios=[{audioPath:'audios/a.mp3',audioUrl:'a',duration:1}]; state.selectedMap={'audios/a.mp3':true};
+    state.videoLists=[{id:'mixed',name:'Mixed',videoPaths:[],audioPaths:['audios/a.mp3'],docPaths:['docs/a.pptx']}];
+    await component.removeSelectedFromCurrentList(); expect(mocks.videoLists.updateList).toHaveBeenCalledWith('mixed',{audioPaths:[]}); expect(state.videoLists.length).toBe(1);
+  });
+  it('deletes the original video document with its thumbnail metadata', async () => {
+    const video = makeVideo('videos/a.mp4', {thumbnailPath:'thumbnails/a.jpg'});
+    state.videos=[video]; state.selectedMap={'videos/a.mp4':true};
+    await component.deletedSelectedVideos();
+    expect(mocks.backend.deleteVideo).toHaveBeenCalledWith(video);
+    expect(mocks.backend.deleteAudio).not.toHaveBeenCalled();
+  });
+
+  it('deletes audio by its audioPath without using the video endpoint', async () => {
+    state.activeTab.set('audios'); state.audios=[{audioPath:'audios/a.mp3',audioUrl:'a',duration:1}]; state.selectedMap={'audios/a.mp3':true};
+    await component.deletedSelectedVideos();
+    expect(mocks.backend.deleteAudio).toHaveBeenCalledWith('audios/a.mp3');
+    expect(mocks.backend.deleteVideo).not.toHaveBeenCalled();
+  });
 });

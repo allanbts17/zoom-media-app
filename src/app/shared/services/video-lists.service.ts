@@ -1,6 +1,7 @@
+import { normalizeMediaList } from '../utils/media-list.utils';
 import { inject, Injectable } from '@angular/core';
 import { Firestore, collection, addDoc, serverTimestamp, collectionData, query, orderBy, CollectionReference, updateDoc, doc, deleteDoc } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { VideoList } from '../interfaces';
 
 @Injectable({
@@ -15,12 +16,13 @@ export class VideoListsService {
     this.listsCollection = collection(this.firestore, 'lists') as CollectionReference<VideoList>;
     const q = query(this.listsCollection, orderBy('createdAt', 'desc'));
     this.lists$ = collectionData(q, { idField: 'id' }) as Observable<VideoList[]>;
+    this.lists$ = this.lists$.pipe(map(lists => lists.map(normalizeMediaList)));
   }
 
-  async addList(name: string, videoPaths: string[] = []): Promise<void> {
+  async addList(name: string, videoPaths: string[] = [], audioPaths: string[] = [], docPaths: string[] = []): Promise<void> {
     const data = await addDoc(this.listsCollection, {
       name: name?.trim() || 'Nueva Lista',
-      videoPaths,
+      videoPaths, audioPaths, docPaths,
       createdAt: serverTimestamp(),
     });
     console.log('List added with ID:', data.id);

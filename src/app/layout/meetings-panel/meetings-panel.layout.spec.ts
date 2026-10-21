@@ -279,5 +279,24 @@ describe('MeetingsPanelLayout', () => {
 
     expect(state.err).toBe('Pega una URL válida de Zoom');
   });
+  it('uploads MP3/WAV from Local and selects Audios', async () => {
+    const event = { target: { files: [new File([''], 'song.mp3', {type:'audio/mpeg'}), new File([''], 'song.wav', {type:'audio/wav'})], value: 'selected' } };
+    await component.fileChangeListener(event);
+    expect(mocks.backend.uploadAudio).toHaveBeenCalledTimes(2);
+    expect(mocks.backend.uploadVideo).not.toHaveBeenCalled();
+    expect(component.state.activeTab()).toBe('audios');
+    expect(event.target.value).toBe('');
+    expect(component.isUploading).toBeFalse();
+  });
+
+  it('rejects unsupported audio formats and restores upload state', async () => {
+    const event = { target: { files: [new File([''], 'song.ogg', {type:'audio/ogg'})], value:'selected' } };
+    await component.fileChangeListener(event);
+    expect(mocks.backend.uploadVideo).not.toHaveBeenCalled();
+    expect(component.state.err).toContain('MP3 y WAV');
+    expect(component.isUploading).toBeFalse();
+    expect(event.target.value).toBe('');
+  });
+
 });
 

@@ -5,6 +5,7 @@ export interface Config {
   busyRow?: string;
   playing: boolean;
   globalVideoOrder?: string[];
+  globalAudioOrder?: string[];
   botMaxSessionSeconds?: number;
   botWaitingRoomTimeoutSeconds?: number;
   playbackId?: string;

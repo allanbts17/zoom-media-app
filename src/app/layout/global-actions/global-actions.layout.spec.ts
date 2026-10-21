@@ -38,6 +38,7 @@ describe('GlobalActionsLayout', () => {
     expect(buttonByTitleOrText('Pausa')!.disabled).toBeTrue();
 
     state.botId = 'bot-1';
+    state.botAction = 'play';
     fixture.detectChanges();
     expect(buttonByTitleOrText('Detener')!.disabled).toBeFalse();
     expect(buttonByTitleOrText('Pausa')!.disabled).toBeFalse();
@@ -53,7 +54,7 @@ describe('GlobalActionsLayout', () => {
 
     const select = el.querySelector('select') as HTMLSelectElement;
     const options = Array.from(select.options).map(o => o.textContent?.trim());
-    expect(options).toEqual(['Todos los videos', 'Domingo']);
+    expect(options).toEqual(['Todos los medios', 'Domingo']);
 
     select.value = select.options[1].value;
     select.dispatchEvent(new Event('change'));
@@ -102,5 +103,16 @@ describe('GlobalActionsLayout', () => {
 
     expect(state.reorderMode).toBeFalse();
     expect(state.globalVideoOrder).toEqual(['v1', 'v2']);
+  });
+  it('persists the audio order independently', async () => {
+    state.activeTab.set('audios'); state.globalAudioOrder=['audios/a.mp3']; state.globalVideoOrder=['videos/v.mp4'];
+    await component.toggleReorder(); state.globalAudioOrder=['audios/b.wav','audios/a.mp3']; await component.toggleReorder();
+    expect(mocks.backend.setConfig).toHaveBeenCalledWith(jasmine.objectContaining({globalAudioOrder:['audios/b.wav','audios/a.mp3']}));
+    expect(state.globalVideoOrder).toEqual(['videos/v.mp4']);
+  });
+  it('cancels audio reordering without affecting videos', async () => {
+    state.activeTab.set('audios'); state.globalAudioOrder=['a','b']; state.globalVideoOrder=['v'];
+    await component.toggleReorder(); state.globalAudioOrder=['b','a']; component.cancelReorder();
+    expect(state.globalAudioOrder).toEqual(['a','b']); expect(state.globalVideoOrder).toEqual(['v']);
   });
 });

@@ -2,17 +2,86 @@
   "hosting": {
     "site": "zoom-app-dev",
     "public": "dist/zoom-media-angular/browser",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
-      { "source": "/zoom-bot/**", "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "/videos",    "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "/videos/**", "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "/recall",    "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "/recall/**", "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "/drive",     "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "/drive/**",  "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "/health",    "function": { "functionId": "api", "region": "us-central1" } },
-      { "source": "**", "destination": "/index.html" }
+      {
+        "source": "/zoom-bot/**",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/videos",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/videos/**",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/recall",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/recall/**",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/drive",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/drive/**",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/health",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/audios",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/audios/**",
+        "function": {
+          "functionId": "api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
   }
 }

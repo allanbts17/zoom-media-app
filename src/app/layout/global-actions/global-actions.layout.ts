@@ -36,12 +36,12 @@ export class GlobalActionsLayout {
             botId: this.state.botId,
             busyRow: this.state.busyRow,
             playing: this.state.playing,
-            globalVideoOrder: this.state.globalVideoOrder
+            [this.state.activeTab() === 'audios' ? 'globalAudioOrder' : 'globalVideoOrder']: this.state.mediaOrder
           });
         } else {
           const activeList = this.state.videoLists.find(l => l.id === this.state.activeListId());
           if (activeList && activeList.id) {
-            await this.videoListsService.updateList(activeList.id, { videoPaths: activeList.videoPaths });
+            await this.videoListsService.updateList(activeList.id, { [this.state.pathsKey]: activeList[this.state.pathsKey] ?? [] });
           }
         }
       } catch (e: any) {
@@ -52,10 +52,10 @@ export class GlobalActionsLayout {
       }
     } else {
       if (this.state.activeListId() === 'all') {
-        this.originalOrderBackup = [...this.state.globalVideoOrder];
+        this.originalOrderBackup = [...this.state.mediaOrder];
       } else {
         const activeList = this.state.videoLists.find(l => l.id === this.state.activeListId());
-        this.originalOrderBackup = activeList ? [...activeList.videoPaths] : [];
+        this.originalOrderBackup = activeList ? [...(activeList[this.state.pathsKey] ?? [])] : [];
       }
       this.state.reorderMode = true;
     }
@@ -63,10 +63,10 @@ export class GlobalActionsLayout {
 
   cancelReorder() {
     if (this.state.activeListId() === 'all') {
-      this.state.globalVideoOrder = [...this.originalOrderBackup];
+      this.state.mediaOrder = [...this.originalOrderBackup];
     } else {
       const activeList = this.state.videoLists.find(l => l.id === this.state.activeListId());
-      if (activeList) activeList.videoPaths = [...this.originalOrderBackup];
+      if (activeList) activeList[this.state.pathsKey] = [...this.originalOrderBackup];
     }
     this.state.reorderMode = false;
   }

@@ -1,24 +1,25 @@
+import { videoToMediaItem, audioToMediaItem } from '../../shared/utils/media-item.utils';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { VideosTableLayout } from './videos-table.layout';
+import { MediaTableLayout } from './media-table.layout';
 import { HomeStateService } from '../../pages/home/home-state.service';
 import { createHomeServiceMocks, makeVideo, provideHomeServiceMocks } from '../../pages/home/testing/home-testing';
 
-describe('VideosTableLayout', () => {
-  let fixture: ComponentFixture<VideosTableLayout>;
+describe('MediaTableLayout', () => {
+  let fixture: ComponentFixture<MediaTableLayout>;
   let state: HomeStateService;
-  let component: VideosTableLayout;
+  let component: MediaTableLayout;
   let mocks: ReturnType<typeof createHomeServiceMocks>;
   let el: HTMLElement;
 
   beforeEach(async () => {
     mocks = createHomeServiceMocks();
     await TestBed.configureTestingModule({
-      imports: [VideosTableLayout],
+      imports: [MediaTableLayout],
       providers: [HomeStateService, ...provideHomeServiceMocks(mocks)]
     }).compileComponents();
 
     state = TestBed.inject(HomeStateService);
-    fixture = TestBed.createComponent(VideosTableLayout);
+    fixture = TestBed.createComponent(MediaTableLayout);
     component = fixture.componentInstance;
     el = fixture.nativeElement;
   });
@@ -88,7 +89,7 @@ describe('VideosTableLayout', () => {
     const playSpy = spyOn(component, 'playSingle').and.returnValue(Promise.resolve());
     playBtn.click();
 
-    expect(playSpy).toHaveBeenCalledWith(video);
+    expect(playSpy).toHaveBeenCalledWith(videoToMediaItem(video));
   });
 
   it('should show "..." on the row that is currently playing', () => {
@@ -106,7 +107,7 @@ describe('VideosTableLayout', () => {
   it('getName should return the file name after the folder', () => {
     expect(fixture.componentInstance.getName('videos/himno.mp4')).toBe('himno.mp4');
   });
-  it('should calculate displayedVideos correctly for all list', () => {
+  it('should calculate displayedMedia correctly for all list', () => {
     state.videos = [
       { videoPath: 'v1', videoUrl: 'u1', duration: 10, thumbnailPath: '', thumbnailUrl: '' },
       { videoPath: 'v2', videoUrl: 'u2', duration: 10, thumbnailPath: '', thumbnailUrl: '' }
@@ -114,9 +115,9 @@ describe('VideosTableLayout', () => {
     state.globalVideoOrder = ['v2', 'v1'];
     state.activeListId.set('all');
 
-    const displayed = component.displayedVideos;
-    expect(displayed[0].videoPath).toBe('v2');
-    expect(displayed[1].videoPath).toBe('v1');
+    const displayed = component.displayedMedia;
+    expect(displayed[0].path).toBe('v2');
+    expect(displayed[1].path).toBe('v1');
   });
 
   it('should only show videos of the active list, in the list order', () => {
@@ -124,16 +125,16 @@ describe('VideosTableLayout', () => {
     state.videoLists = [{ id: 'l1', name: 'Lista', videoPaths: ['v3', 'v1'] }];
     state.activeListId.set('l1');
 
-    expect(component.displayedVideos.map(v => v.videoPath)).toEqual(['v3', 'v1']);
+    expect(component.displayedMedia.map(v => v.path)).toEqual(['v3', 'v1']);
   });
   it('filters the visible name ignoring case, accents and surrounding spaces', () => {
     state.videos = [makeVideo('videos/Canción.mp4'), makeVideo('videos/Otro.mp4')];
     state.videoSearchQuery.set('  CANCION  ');
-    expect(component.displayedVideos.map(v => v.videoPath)).toEqual(['videos/Canción.mp4']);
+    expect(component.displayedMedia.map(v => v.path)).toEqual(['videos/Canción.mp4']);
     state.videoSearchQuery.set('videos');
-    expect(component.displayedVideos).toEqual([]);
+    expect(component.displayedMedia).toEqual([]);
     state.videoSearchQuery.set('');
-    expect(component.displayedVideos.length).toBe(2);
+    expect(component.displayedMedia.length).toBe(2);
   });
 
   it('combines search with the active list and keeps its order', () => {
@@ -141,7 +142,7 @@ describe('VideosTableLayout', () => {
     state.videoLists = [{ id: 'l1', name: 'Lista', videoPaths: ['videos/tres.mp4', 'videos/uno.mp4'] }];
     state.activeListId.set('l1');
     state.videoSearchQuery.set('.mp4');
-    expect(component.displayedVideos.map(v => v.videoPath)).toEqual(['videos/tres.mp4', 'videos/uno.mp4']);
+    expect(component.displayedMedia.map(v => v.path)).toEqual(['videos/tres.mp4', 'videos/uno.mp4']);
   });
 
   it('preserves hidden videos when reordering search results', () => {
@@ -152,4 +153,67 @@ describe('VideosTableLayout', () => {
     expect(state.globalVideoOrder).toEqual(['videos/a2.mp4', 'videos/hidden.mp4', 'videos/a1.mp4']);
   });
 
+  it('shows audio-only lists without videos', () => {
+    state.audioLoading = false;
+    state.audios = [{audioPath:'audios/a.mp3',audioUrl:'https://storage/a.mp3',duration:12}];
+    state.videoLists = [{id:'audio',name:'Audio',videoPaths:[],audioPaths:['audios/a.mp3']}];
+    state.activeListId.set('audio'); component.selectTab('audios'); fixture.detectChanges();
+    expect(rows().length).toBe(1); expect(el.textContent).toContain('a.mp3');
+  });
+  it('treats missing audioPaths as empty and preserves video order', () => {
+    state.videoLists = [{id:'legacy',name:'Legacy',videoPaths:['videos/a.mp4']}];
+    state.activeListId.set('legacy'); component.selectTab('audios');
+    expect(component.displayedMedia).toEqual([]);
+    expect(state.videoLists[0].videoPaths).toEqual(['videos/a.mp4']);
+  });
+  it('reorders audios without changing video paths', () => {
+    state.audios = [{audioPath:'audios/a.mp3',audioUrl:'a',duration:1},{audioPath:'audios/b.wav',audioUrl:'b',duration:1}];
+    state.videoLists = [{id:'mixed',name:'Mixed',videoPaths:['videos/v.mp4'],audioPaths:['audios/a.mp3','audios/b.wav']}];
+    state.activeListId.set('mixed'); component.selectTab('audios'); state.reorderMode = true;
+    component.drop({previousIndex:0,currentIndex:1} as any);
+    expect(state.videoLists[0].audioPaths).toEqual(['audios/b.wav','audios/a.mp3']);
+    expect(state.videoLists[0].videoPaths).toEqual(['videos/v.mp4']);
+  });
+  it('plays audio through the bot audio command', async () => {
+    component.selectTab('audios'); state.botId = 'bot-1';
+    await component.playSingle(audioToMediaItem({audioPath:'audios/a.mp3',audioUrl:'https://storage/audios/a.mp3',duration:10}));
+    expect(mocks.backend.play).toHaveBeenCalledWith('bot-1','audio','https://storage/audios/a.mp3');
+  });
+  it('blocks tab changes during reordering', () => {
+    state.reorderMode = true; component.selectTab('audios'); expect(state.activeTab()).toBe('videos');
+  });
+  it('opens Drive and reuses an already loaded empty result', async () => {
+    component.openDrive(); await Promise.resolve();
+    component.selectTab('videos'); component.openDrive();
+    expect(state.activeTab()).toBe('drive'); expect(mocks.backend.listDriveFiles).toHaveBeenCalledTimes(1);
+  });
+  for (const tab of ['videos', 'audios'] as const) {
+    it('keeps ' + tab + ' action elements alive between mousedown and click', () => {
+      state.loading = false;
+      state.audioLoading = false;
+      state.botId = 'bot-1';
+      state.videos = [makeVideo('videos/a.mp4')];
+      state.audios = [{audioPath:'audios/a.mp3',audioUrl:'https://storage/a.mp3',duration:10}];
+      component.selectTab(tab);
+      fixture.detectChanges();
+      const row = rows()[0];
+      const button = row.querySelector('button') as HTMLButtonElement;
+      const link = row.querySelector('a') as HTMLAnchorElement;
+      const playSpy = spyOn(component, 'playSingle').and.returnValue(Promise.resolve());
+
+      button.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+      fixture.detectChanges();
+      expect(rows()[0]).toBe(row);
+      expect(rows()[0].querySelector('button')).toBe(button);
+      button.click();
+      expect(playSpy).toHaveBeenCalledWith(jasmine.objectContaining({type:tab === 'audios' ? 'audio' : 'video'}));
+
+      link.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+      fixture.detectChanges();
+      expect(rows()[0].querySelector('a')).toBe(link);
+      expect(link.isConnected).toBeTrue();
+      expect(link.getAttribute('href')).toBe(tab === 'audios' ? 'https://storage/a.mp3' : 'https://storage/videos/a.mp4');
+      expect(link.target).toBe('_blank');
+    });
+  }
 });

@@ -6,7 +6,7 @@ import { BackendService } from '../../shared/services/backend.service';
 import { LoadingService } from '../../shared/services/loading.service';
 import { ModalService } from '../../shared/services/modal.service';
 import { VideoListsService } from '../../shared/services/video-lists.service';
-import { VideoItem } from '../../shared/interfaces';
+import { MediaItem } from '../../shared/interfaces';
 
 /** Bulk actions over the selected videos (create list, add/remove from list, delete). */
 @Component({
@@ -24,8 +24,9 @@ export class SelectionBarLayout {
 
   newListTitle = '';
 
-  selectedList(): VideoItem[] {
-    return this.state.videos.filter(v => this.state.selectedMap[v.videoPath]);
+  selectedList(): MediaItem[] {
+    if (!['videos', 'audios'].includes(this.state.activeTab())) return [];
+    return this.state.mediaItems.filter(v => this.state.selectedMap[v.path]);
   }
 
   async createNewList() {
@@ -38,8 +39,8 @@ export class SelectionBarLayout {
     this.state.err = '';
     this.loadingService.show();
     try {
-      const paths = queue.map(v => v.videoPath);
-      await this.videoListsService.addList(this.newListTitle, paths);
+      const paths = queue.map(v => v.path);
+      await this.videoListsService.addList(this.newListTitle, this.state.pathsKey === 'videoPaths' ? paths : [], this.state.pathsKey === 'audioPaths' ? paths : []);
       this.newListTitle = '';
       this.state.selectedMap = {}; // clear selection
     } catch (e: any) {
@@ -58,13 +59,13 @@ export class SelectionBarLayout {
 
     this.loadingService.show();
     try {
-      const newPaths = [...targetList.videoPaths];
+      const newPaths = [...(targetList[this.state.pathsKey] ?? [])];
       queue.forEach(v => {
-        if (!newPaths.includes(v.videoPath)) {
-          newPaths.push(v.videoPath);
+        if (!newPaths.includes(v.path)) {
+          newPaths.push(v.path);
         }
       });
-      await this.videoListsService.updateList(targetList.id, { videoPaths: newPaths });
+      await this.videoListsService.updateList(targetList.id, { [this.state.pathsKey]: newPaths });
       this.state.selectedMap = {}; // clear selection
     } catch (e: any) {
       this.state.err = e?.message ?? 'Error agregando a la lista';
@@ -83,9 +84,9 @@ export class SelectionBarLayout {
 
     this.loadingService.show();
     try {
-      const pathsToRemove = queue.map(v => v.videoPath);
-      const newPaths = activeList.videoPaths.filter(p => !pathsToRemove.includes(p));
-      await this.videoListsService.updateList(activeList.id, { videoPaths: newPaths });
+      const pathsToRemove = queue.map(v => v.path);
+      const newPaths = (activeList[this.state.pathsKey] ?? []).filter(p => !pathsToRemove.includes(p));
+      await this.videoListsService.updateList(activeList.id, { [this.state.pathsKey]: newPaths });
       this.state.selectedMap = {};
     } catch (e: any) {
       this.state.err = e?.message ?? 'Error removiendo de la lista';
@@ -99,13 +100,17 @@ export class SelectionBarLayout {
     let confirm = await this.confirmService.confirm('Confirmación', '¿Seguro que quieres borrar?')
     if (!confirm) return;
 
-    const selected = this.selectedList()
+    const selected = this.selectedList();
     console.log('Delete selected videos:', selected);
     this.loadingService.show();
+    try {
     for (const v of selected) {
-      await this.backend.deleteVideo(v)
+      if (v.type === 'audio') await this.backend.deleteAudio(v.source.audioPath);
+      else if (v.type === 'video') await this.backend.deleteVideo(v.source)
     }
-    this.loadingService.hide();
+    this.state.selectedMap = {};
+    } catch(error: any) { this.state.err = error?.message ?? 'Error eliminando medios'; }
+    finally { this.loadingService.hide(); }
   }
 
 }

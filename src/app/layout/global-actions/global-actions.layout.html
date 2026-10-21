@@ -27,20 +27,21 @@
   <!-- <label class="text-sm text-gray-700 dark:text-gray-300">Lista:</label> -->
   <select class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
           [ngModel]="state.activeListId()"
+          [disabled]="state.reorderMode"
           (ngModelChange)="state.activeListId.set($event)">
-    <option value="all">Todos los videos</option>
+    <option value="all">Todos los medios</option>
     <option *ngFor="let list of state.videoLists" [value]="list.id">{{ list.name }}</option>
   </select>
 
-  <input type="search"
+  <input *ngIf="state.activeTab() === 'videos' || state.activeTab() === 'audios'" type="search"
          class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 min-w-0"
-         placeholder="Buscar videos…" aria-label="Buscar videos por nombre"
-         [ngModel]="state.videoSearchQuery()"
-         (ngModelChange)="state.videoSearchQuery.set($event)" />
+         placeholder="Buscar medios…" aria-label="Buscar medios por nombre"
+         [ngModel]="state.mediaQuery()"
+         (ngModelChange)="state.mediaQuery.set($event)" />
 
   <button *ngIf="state.activeListId() !== 'all'"
           class="px-2 py-2 rounded text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-white/5"
-          (click)="deleteCurrentList()"
+          [disabled]="state.reorderMode" (click)="deleteCurrentList()"
           title="Borrar lista actual">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
   </button>
@@ -51,7 +52,7 @@
       Cancelar
     </button>
     <button class="px-3 py-2 rounded border border-gray-500 dark:border-white/20 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10"
-            (click)="toggleReorder()" [ngClass]="{'bg-blue-600 hover:bg-blue-500 text-white border-blue-600': state.reorderMode}">
+            [disabled]="state.activeTab() === 'drive' || state.activeTab() === 'docs'" (click)="toggleReorder()" [ngClass]="{'bg-blue-600 hover:bg-blue-500 text-white border-blue-600': state.reorderMode}">
       {{ state.reorderMode ? 'Guardar orden' : 'Reordenar' }}
     </button>
   </div>

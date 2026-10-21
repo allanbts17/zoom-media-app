@@ -41,6 +41,13 @@ export function createHomeServiceMocks(): HomeServiceMocks {
     },
     backend: {
       videos$: of([]),
+      audios$: of([]),
+      play: jasmine.createSpy('play').and.returnValue(of({action:'play',playback_id:'p1'})),
+      pause: jasmine.createSpy('pause').and.returnValue(of({action:'pause'})),
+      resume: jasmine.createSpy('resume').and.returnValue(of({action:'resume'})),
+      stop: jasmine.createSpy('stop').and.returnValue(of({action:'stop'})),
+      uploadAudio: jasmine.createSpy('uploadAudio').and.returnValue(Promise.resolve()),
+      deleteAudio: jasmine.createSpy('deleteAudio').and.returnValue(Promise.resolve()),
       configData$: of({ botId: '', busyRow: '', playing: false, globalVideoOrder: [] }),
       setConfig: jasmine.createSpy('setConfig').and.returnValue(Promise.resolve()),
       createBot: jasmine.createSpy('createBot').and.returnValue(of({ bot_id: 'bot123', operation_id: 'operation123', status: 'queued' })),

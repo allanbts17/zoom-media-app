@@ -1,18 +1,13 @@
-import { Component, inject, signal } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HomeStateService } from '../../pages/home/home-state.service';
-import { BackendService } from '../../shared/services/backend.service';
-import { LoadingService } from '../../shared/services/loading.service';
-import { DriveFile } from '../../shared/interfaces';
+import { HomeStateService } from '../../../pages/home/home-state.service';
+import { BackendService } from '../../../shared/services/backend.service';
+import { LoadingService } from '../../../shared/services/loading.service';
+import { DriveFile } from '../../../shared/interfaces';
 
 /** Collapsible Google Drive file browser with per-file import. */
-@Component({
-  selector: 'app-drive-import',
-  imports: [CommonModule],
-  templateUrl: './drive-import.layout.html',
-  styleUrl: './drive-import.layout.css'
-})
-export class DriveImportLayout {
+@Injectable()
+export class DriveMediaService {
   readonly state = inject(HomeStateService);
   private readonly backend = inject(BackendService);
   private readonly loadingService = inject(LoadingService);
@@ -20,7 +15,7 @@ export class DriveImportLayout {
   driveLoading = false;
   driveError = '';
   driveImportingId = '';
-  isDriveExpanded = signal(false);
+  private loaded = false;
 
   get filteredDriveFiles(): DriveFile[] {
     const query = this.state.driveSearchQuery().toLowerCase().trim();
@@ -29,14 +24,14 @@ export class DriveImportLayout {
   }
 
   async loadDriveFiles(expand: boolean = true) {
-    if (expand) this.isDriveExpanded.set(true);
-    if (this.driveFiles.length > 0 && !expand) return; // already loaded and just toggling
+    if (this.driveLoading || (this.loaded && !expand)) return;
 
     this.driveLoading = true;
     this.driveError = '';
     try {
       const result = await this.backend.listDriveFiles().toPromise();
       this.driveFiles = result?.files ?? [];
+      this.loaded = true;
     } catch (e: any) {
       this.driveError = e?.message ?? 'Error cargando archivos de Drive';
     } finally {
@@ -44,13 +39,6 @@ export class DriveImportLayout {
     }
   }
 
-  toggleDrive() {
-    if (!this.isDriveExpanded()) {
-      this.loadDriveFiles(true);
-    } else {
-      this.isDriveExpanded.set(false);
-    }
-  }
 
   async importDriveFile(file: DriveFile) {
     if (this.driveImportingId) return; // ya hay una importación en curso
