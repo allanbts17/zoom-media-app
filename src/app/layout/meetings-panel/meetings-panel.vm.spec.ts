@@ -78,4 +78,40 @@ describe('MeetingsPanel VM and bot progress', () => {
     const calls=mocks.zoom.getVm.calls.count(); fixture.destroy(); tick(10000);
     expect(mocks.zoom.getVm.calls.count()).toBe(calls);
   }));
+  it('loads active bots on initial RUNNING state and restores the first bot', fakeAsync(() => {
+    const bots = { items: [{ bot_id: 'first', status: 'active' as const, created_at: null }, { bot_id: 'second', status: 'active' as const, created_at: null }], next_cursor: null };
+    mocks.zoom.getVm.and.returnValue(of({ status: 'RUNNING' }));
+    mocks.zoom.listBots.and.returnValue(of(bots));
+    component.ngOnInit(); flushMicrotasks();
+    expect(mocks.zoom.listBots).toHaveBeenCalledOnceWith({ status: 'active' });
+    expect(component.initialBots()).toEqual(bots);
+    expect(state.botId).toBe('first');
+    expect(component.botConnected()).toBeTrue();
+    expect(mocks.backend.setConfig).toHaveBeenCalledWith(jasmine.objectContaining({ botId: 'first' }));
+    component.refreshVm(); flushMicrotasks();
+    expect(mocks.zoom.listBots).toHaveBeenCalledTimes(1);
+  }));
+
+  it('does not list bots when the initial VM is off', () => {
+    expect(mocks.zoom.listBots).not.toHaveBeenCalled();
+  });
+
+  it('keeps the bot ID when the initial active bot list is empty', fakeAsync(() => {
+    state.botId = 'existing';
+    mocks.zoom.getVm.and.returnValue(of({ status: 'RUNNING' }));
+    component.ngOnInit(); flushMicrotasks();
+    expect(state.botId).toBe('existing');
+  }));
+
+  it('reports bot listing errors without changing the VM status or bot ID', fakeAsync(() => {
+    state.botId = 'existing';
+    mocks.zoom.getVm.and.returnValue(of({ status: 'RUNNING' }));
+    mocks.zoom.listBots.and.returnValue(throwError(() => new Error('LIST_FAILED')));
+    component.ngOnInit(); flushMicrotasks();
+    expect(component.vmStatus()).toBe('RUNNING');
+    expect(state.botId).toBe('existing');
+    expect(component.controlMessage()).toContain('LIST_FAILED');
+    tick(12000);
+  }));
+
 });

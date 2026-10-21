@@ -8,7 +8,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MeetingsService } from '../../shared/services/meetings.service';
 import { BackendService } from '../../shared/services/backend.service';
 import { ModalService } from '../../shared/services/modal.service';
-import { Meeting, ZoomBotJoinRequest } from '../../shared/interfaces';
+import { Meeting, ZoomBotJoinRequest, ZoomBotList } from '../../shared/interfaces';
 
 /** Zoom meeting selection, bot controls, add meeting and add videos (local / Drive search). */
 @Component({
@@ -24,6 +24,7 @@ export class MeetingsPanelLayout implements OnInit {
   private readonly modalService = inject(ModalService);
   private readonly zoom = inject(ZoomBotService);
   readonly vmStatus = signal('UNKNOWN');
+  readonly initialBots = signal<ZoomBotList | null>(null);
   readonly vmBusy = signal(false);
   readonly agentReady = signal(false);
   readonly botConnected = signal(false);
@@ -66,7 +67,7 @@ export class MeetingsPanelLayout implements OnInit {
     return reply.error?.error?.code || reply.message || 'UNKNOWN_ERROR';
   }
 
-  refreshVm(): void {
+  refreshVm(initial = false): void {
     if (this.vmBusy() || this.destroyed) return;
     const generation = ++this.vmGeneration;
     this.vmBusy.set(true);
@@ -76,7 +77,10 @@ export class MeetingsPanelLayout implements OnInit {
         this.vmStatus.set(state.status);
         this.vmBusy.set(false);
         this.agentReady.set(false);
-        if (state.status === 'RUNNING') this.watchVm('RUNNING', undefined, false);
+        if (state.status === 'RUNNING') {
+          if (initial) this.loadInitialBots();
+          this.watchVm('RUNNING', undefined, false);
+        }
         else if (['PROVISIONING', 'STAGING'].includes(state.status)) this.watchVm('RUNNING');
         else if (state.status === 'STOPPING') this.watchVm('TERMINATED');
       },
@@ -85,6 +89,21 @@ export class MeetingsPanelLayout implements OnInit {
         this.vmStatus.set('UNKNOWN');
         this.message('No se pudo consultar la VM: ' + this.errorCode(error), true, true);
       },
+    });
+  }
+
+  private loadInitialBots(): void {
+    this.zoom.listBots({ status: 'active' }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: bots => {
+        this.initialBots.set(bots);
+        const bot = bots.items[0];
+        if (bot) {
+          this.state.botId = bot.bot_id;
+          this.botConnected.set(true);
+          this.state.updateConfig();
+        }
+      },
+      error: error => this.message('No se pudo listar los bots: ' + this.errorCode(error), true, true),
     });
   }
 
@@ -295,7 +314,7 @@ export class MeetingsPanelLayout implements OnInit {
   }
 
   ngOnInit() {
-    this.refreshVm();
+    this.refreshVm(true);
     this.meetingsService.meetings$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: list => {
         this.meetings = list;

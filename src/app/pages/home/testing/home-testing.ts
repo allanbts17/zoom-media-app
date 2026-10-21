@@ -65,6 +65,7 @@ export function createHomeServiceMocks(): HomeServiceMocks {
       deleteList: jasmine.createSpy('deleteList').and.returnValue(Promise.resolve()),
     },
     zoom: {
+      listBots: jasmine.createSpy('listBots').and.returnValue(of({ items: [], next_cursor: null })),
       getVm: jasmine.createSpy('getVm').and.returnValue(of({ name: 'zoom-bot-vm', status: 'RUNNING' })),
       startVm: jasmine.createSpy('startVm').and.returnValue(of({ name: 'zoom-bot-vm', status: 'PROVISIONING', operation: { name: 'vm-start-op', status: 'PENDING', error: null } })),
       stopVm: jasmine.createSpy('stopVm').and.returnValue(of({ name: 'zoom-bot-vm', status: 'STOPPING', operation: { name: 'vm-stop-op', status: 'PENDING', error: null } })),
