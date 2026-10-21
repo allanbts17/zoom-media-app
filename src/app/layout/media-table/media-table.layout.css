@@ -1,4 +1,37 @@
-/* Host box is transparent so the inner <section> keeps flex-1 inside <main>. */
 :host {
-  display: contents;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+app-tabs {
+  flex: none;
+}
+
+.media-panel {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.drive-browser {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.drive-browser > header {
+  flex: none;
+}
+
+.drive-content {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
 }

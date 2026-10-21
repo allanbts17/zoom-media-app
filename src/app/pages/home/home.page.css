@@ -1,4 +1,9 @@
-/* Host box is transparent so <main> renders exactly as when it lived in app.html. */
 :host {
   display: contents;
+}
+
+app-meetings-panel,
+app-global-actions,
+app-selection-bar {
+  flex: none;
 }

@@ -1,9 +1,9 @@
 <app-tabs [disabled]="state.reorderMode" [tabs]="tabs" [active]="state.activeTab()" (selected)="selectTab($event)" />
-<div role="tabpanel" [id]="'media-panel-' + state.activeTab()" [attr.aria-labelledby]="'media-tab-' + state.activeTab()">
+<div class="media-panel" role="tabpanel" [id]="'media-panel-' + state.activeTab()" [attr.aria-labelledby]="'media-tab-' + state.activeTab()">
 @if(state.activeTab() === 'videos' || state.activeTab() === 'audios') {
 @if(state.activeTab() === 'audios') { <label class="block mb-3">Subir audios (MP3 / WAV)<input type="file" accept=".mp3,.wav" multiple [disabled]="audios.uploading" (change)="audios.upload($event)" /></label> @if(audios.uploading) { <p role="status">Subiendo audios…</p> } }
 <!-- Tabla de videos -->
-<section class="rounded-lg border border-gray-400 dark:border-white/10 flex-1 min-h-0 max-h-[500px] overflow-auto custom-scrollbar">
+<section class="rounded-lg border border-gray-400 dark:border-white/10 flex-1 min-h-0 overflow-auto custom-scrollbar">
   <table class="w-full text-sm border-collapse">
     <thead class="sticky top-0 z-20 bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-200 border-b border-gray-300 dark:border-white/10">
       <tr>
@@ -53,7 +53,7 @@
 </section>
 
 } @else if(state.activeTab() === 'drive') { <!-- Google Drive Import -->
-<section class="flex-none rounded-lg border border-gray-400 dark:border-white/20 bg-white dark:bg-white/5 mt-4 overflow-hidden">
+<section class="drive-browser rounded-lg border border-gray-400 dark:border-white/20 bg-white dark:bg-white/5 overflow-hidden">
   <!-- Header -->
   <header class="p-3 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
     <div class="flex items-center gap-2">
@@ -79,7 +79,7 @@
     </div>
   </header>
 
-  <div class="border-t border-gray-400 dark:border-white/10">
+  <div class="drive-content custom-scrollbar border-t border-gray-400 dark:border-white/10">
     <!-- Error -->
     <div *ngIf="drive.driveError" class="m-3 p-2 border border-red-400 text-red-700 dark:text-red-200 rounded bg-red-50 dark:bg-red-900/30 text-sm">
       {{ drive.driveError }}
@@ -91,7 +91,7 @@
     </div>
 
     <!-- File list with scroll -->
-    <div *ngIf="drive.filteredDriveFiles.length > 0" class="max-h-[400px] overflow-y-auto custom-scrollbar pb-2">
+    <div *ngIf="drive.filteredDriveFiles.length > 0" class="pb-2">
       <table class="w-full text-sm border-collapse">
         <thead class="sticky top-0 bg-gray-50 dark:bg-neutral-900 text-gray-600 dark:text-gray-400 z-10 border-b border-gray-400 dark:border-white/10">
           <tr>
