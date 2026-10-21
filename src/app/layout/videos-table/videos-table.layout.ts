@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkDrag, CdkDropList, CdkDragHandle, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HomeStateService } from '../../pages/home/home-state.service';
@@ -17,7 +17,21 @@ export class VideosTableLayout {
   readonly state = inject(HomeStateService);
   private readonly backend = inject(BackendService);
 
+  private readonly normalizedQuery = computed(() => this.normalizeName(this.state.videoSearchQuery()));
+
+  private normalizeName(name: string): string {
+    // nogrep: js-incomplete-html-attribute-sanitization
+    return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
   get displayedVideos(): VideoItem[] {
+    const query = this.normalizedQuery();
+    return query
+      ? this.orderedVideos.filter(video => this.normalizeName(this.getName(video.videoPath) ?? '').includes(query))
+      : this.orderedVideos;
+  }
+
+  private get orderedVideos(): VideoItem[] {
     let list: VideoItem[] = [];
     let order: string[] = [];
 
@@ -53,7 +67,12 @@ export class VideosTableLayout {
     const newDisplayed = [...this.displayedVideos];
     moveItemInArray(newDisplayed, event.previousIndex, event.currentIndex);
 
-    const newOrder = newDisplayed.map(v => v.videoPath);
+    // Replace only visible slots so filtering never removes hidden videos from the order.
+    const visiblePaths = new Set(newDisplayed.map(v => v.videoPath));
+    let visibleIndex = 0;
+    const newOrder = this.orderedVideos.map(v => visiblePaths.has(v.videoPath)
+      ? newDisplayed[visibleIndex++].videoPath
+      : v.videoPath);
     if (this.state.activeListId() === 'all') {
       this.state.globalVideoOrder = newOrder;
     } else {

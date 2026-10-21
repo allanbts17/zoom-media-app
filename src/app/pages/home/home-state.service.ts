@@ -20,6 +20,7 @@ export class HomeStateService {
   globalVideoOrder: string[] = [];
   err = '';
   driveSearchQuery = signal('');
+  readonly videoSearchQuery = signal('');
   botMaxSessionSeconds!: number;
   botWaitingRoomTimeoutSeconds!: number;
   playbackId = '';

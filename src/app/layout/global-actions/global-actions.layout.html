@@ -26,6 +26,12 @@
     <option *ngFor="let list of state.videoLists" [value]="list.id">{{ list.name }}</option>
   </select>
 
+  <input type="search"
+         class="border border-gray-500 dark:border-white/20 rounded px-3 py-2 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 min-w-0"
+         placeholder="Buscar videos…" aria-label="Buscar videos por nombre"
+         [ngModel]="state.videoSearchQuery()"
+         (ngModelChange)="state.videoSearchQuery.set($event)" />
+
   <button *ngIf="state.activeListId() !== 'all'"
           class="px-2 py-2 rounded text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-white/5"
           (click)="deleteCurrentList()"

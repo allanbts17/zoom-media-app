@@ -126,4 +126,30 @@ describe('VideosTableLayout', () => {
 
     expect(component.displayedVideos.map(v => v.videoPath)).toEqual(['v3', 'v1']);
   });
+  it('filters the visible name ignoring case, accents and surrounding spaces', () => {
+    state.videos = [makeVideo('videos/Canción.mp4'), makeVideo('videos/Otro.mp4')];
+    state.videoSearchQuery.set('  CANCION  ');
+    expect(component.displayedVideos.map(v => v.videoPath)).toEqual(['videos/Canción.mp4']);
+    state.videoSearchQuery.set('videos');
+    expect(component.displayedVideos).toEqual([]);
+    state.videoSearchQuery.set('');
+    expect(component.displayedVideos.length).toBe(2);
+  });
+
+  it('combines search with the active list and keeps its order', () => {
+    state.videos = [makeVideo('videos/uno.mp4'), makeVideo('videos/dos.mp4'), makeVideo('videos/tres.mp4')];
+    state.videoLists = [{ id: 'l1', name: 'Lista', videoPaths: ['videos/tres.mp4', 'videos/uno.mp4'] }];
+    state.activeListId.set('l1');
+    state.videoSearchQuery.set('.mp4');
+    expect(component.displayedVideos.map(v => v.videoPath)).toEqual(['videos/tres.mp4', 'videos/uno.mp4']);
+  });
+
+  it('preserves hidden videos when reordering search results', () => {
+    state.videos = [makeVideo('videos/a1.mp4'), makeVideo('videos/hidden.mp4'), makeVideo('videos/a2.mp4')];
+    state.reorderMode = true;
+    state.videoSearchQuery.set('a');
+    component.drop({ previousIndex: 0, currentIndex: 1 } as any);
+    expect(state.globalVideoOrder).toEqual(['videos/a2.mp4', 'videos/hidden.mp4', 'videos/a1.mp4']);
+  });
+
 });
