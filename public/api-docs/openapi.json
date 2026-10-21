@@ -478,8 +478,18 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "pattern": "^(accepted|preparing|joining|waiting_room|active|reconnecting|leaving|ended|failed)$"
+                  "enum": [
+                    "accepted",
+                    "preparing",
+                    "joining",
+                    "waiting_room",
+                    "active",
+                    "reconnecting",
+                    "leaving",
+                    "ended",
+                    "failed"
+                  ],
+                  "type": "string"
                 },
                 {
                   "type": "null"
@@ -487,7 +497,7 @@
               ],
               "title": "Status"
             },
-            "description": "Filtra estado de sesión (no estado de reproducción)."
+            "description": "Filtra por estado exacto de sesión. Usa status=active para obtener solo bots conectados y activos; no incluye joining ni reconnecting. Omitir devuelve todos los estados. No es el estado de reproducción. Mantener el mismo status al usar next_cursor."
           }
         ],
         "responses": {

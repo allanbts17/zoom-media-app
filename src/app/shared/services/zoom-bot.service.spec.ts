@@ -78,11 +78,12 @@ describe('ZoomBotService protocol', () => {
 
   it('encodes cursor query parameters and never retries an HTTP error automatically', fakeAsync(() => {
     let status = 0;
-    service.listBots({ cursor: 'a+b/==', limit: 20 }).subscribe({ error: e => status = e.status });
+    service.listBots({ status: 'active', cursor: 'a+b/==', limit: 20 }).subscribe({ error: e => status = e.status });
     flushMicrotasks();
     const request = http.expectOne(r => r.url === '/zoom-bot/bots');
     expect(request.request.params.get('cursor')).toBe('a+b/==');
     expect(request.request.params.get('limit')).toBe('20');
+    expect(request.request.params.get('status')).toBe('active');
     request.flush({ error: { code: 'RATE_LIMITED' } }, { status: 429, statusText: 'Rate Limited' });
     flushMicrotasks();
     expect(status).toBe(429);

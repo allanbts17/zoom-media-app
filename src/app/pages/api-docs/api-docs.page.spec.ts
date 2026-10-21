@@ -53,7 +53,16 @@ describe('ApiDocsPage laboratory', () => {
     expect(page.botId).toBe(botId); expect(page.operationId).toBe(operationId);
     expect(page.idempotencyKey).toBe(key); expect(page.busy()).toBeFalse();
   }));
-  it('shows a 422 response verbatim and never retries', fakeAsync(() => {
+  it('lists active bots by default and allows removing the status filter', fakeAsync(() => {
+    select('list'); page.execute(); flushMicrotasks();
+    const filtered = http.expectOne('/zoom-bot/bots?status=active&limit=10');
+    filtered.flush('{"items":[],"next_cursor":null}');
+    expect(page.response()?.status).toBe(200);
+    page.query = 'limit=10'; page.execute(); flushMicrotasks();
+    const all = http.expectOne('/zoom-bot/bots?limit=10');
+    all.flush('{"items":[],"next_cursor":null}');
+  }));
+  it('shows a 422 response verbatim and never retries' , fakeAsync(() => {
     select('join'); page.execute(); flushMicrotasks();
     http.expectOne('/zoom-bot/bots').flush('{"error":{"code":"VALIDATION_ERROR"}}', { status: 422, statusText: 'Unprocessable Content' });
     expect(page.response()?.status).toBe(422); expect(page.response()?.body).toContain('VALIDATION_ERROR');

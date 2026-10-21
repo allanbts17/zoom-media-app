@@ -33,7 +33,7 @@ export class ApiDocsPage {
     { id: 'live', method: 'GET', path: '/health/live', title: 'Proceso HTTP', description: 'Comprueba el proceso de la API. No confirma que el agente de la VM esté disponible.' },
     { id: 'ready', method: 'GET', path: '/health/ready', title: 'Disponibilidad del agente', description: 'Comprueba si el agente está listo. Con la VM apagada puede responder 503.' },
     { id: 'capacity', method: 'GET', path: '/capacity', title: 'Capacidad', description: 'Consulta la plaza disponible y el estado del agente.' },
-    { id: 'list', method: 'GET', path: '/bots', title: 'Listar bots', description: 'Consulta sesiones y su paginación.', query: 'limit=10' },
+    { id: 'list', method: 'GET', path: '/bots', title: 'Listar bots', description: 'Filtra por estado de sesión: status=active devuelve solo activos. Omite status para listar todos; conserva el filtro al usar cursor. Otros estados: accepted, preparing, joining, waiting_room, reconnecting, leaving, ended, failed.', query: 'status=active&limit=10' },
     { id: 'join', method: 'POST', path: '/bots', title: 'Entrar a una reunión', description: 'Crea una sesión sin medios. Un 202 indica aceptación: consulta después la operación.', examples: {
       'Entrar sin límite de duración': { meeting: { number: '123456789', password: '', participant_name: 'VideoBot-Lab' }, options: { waiting_room_timeout_seconds: 180, max_session_seconds: null } },
       'Entrar por tres horas': { meeting: { number: '123456789', password: '', participant_name: 'VideoBot-Lab' }, options: { waiting_room_timeout_seconds: 180, max_session_seconds: 10800 } },

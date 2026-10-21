@@ -40,6 +40,7 @@ export class ZoomBotService {
     return this.request('GET', '/capacity');
   }
 
+  /** listBots({ status: 'active' }) returns only active sessions; omit status for all. */
   listBots(query: ZoomBotListQuery = {}): Observable<ZoomBotList> {
     return this.request('GET', '/bots', undefined, undefined, this.params(query));
   }
