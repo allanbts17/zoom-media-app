@@ -82,6 +82,13 @@ describe('HomePage', () => {
     expect(el.querySelector('app-meetings-panel')?.textContent).toContain('bot-shared');
   });
 
+  it('does not overwrite local preparation when persisted config emits a stale busy row', () => {
+    const config = new Subject<any>(); mocks.backend.configData$ = config;
+    fixture.detectChanges();
+    fixture.componentInstance.state.busyRow = 'videos/preparing.mp4';
+    config.next({botId:'bot',busyRow:'videos/old.mp4',playing:true});
+    expect(fixture.componentInstance.state.busyRow).toBe('videos/preparing.mp4');
+  });
   it('loads common data in home and unsubscribes when the page is destroyed', () => {
     const videos = new Subject<any[]>();
     const config = new Subject<any>();

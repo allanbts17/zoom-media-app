@@ -48,7 +48,6 @@ export class HomeStateService {
   updateConfig() {
     return this.backend.setConfig({
       botId: this.botId,
-      busyRow: this.busyRow,
       playing: this.playing,
       playbackId: this.playbackId,
       botAction: this.botAction

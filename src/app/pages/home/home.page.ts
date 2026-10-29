@@ -50,7 +50,7 @@ export class HomePage implements OnInit {
     this.backend.configData$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: config => {
         this.state.botId = config?.botId ?? '';
-        this.state.busyRow = config?.busyRow ?? '';
+        // Preparation is transient browser state; never restore a stale persisted busy row.
         this.state.playing = config?.playing ?? false;
         this.state.globalVideoOrder = config?.globalVideoOrder ?? [];
         this.state.globalAudioOrder = config?.globalAudioOrder ?? [];
