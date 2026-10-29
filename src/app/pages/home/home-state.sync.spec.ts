@@ -60,6 +60,7 @@ describe('Shared agent state', () => {
     expect(a.err).toBe('MEDIA_RANGE_FAILED');
     a.applyRuntime(runtime(2, 'finished'), now);
     expect(a.playing).toBeFalse(); expect(a.mediaChangeMessage).toContain('finalizada');
+    expect(a.err).toBe('');
     const ended = runtime(3); ended.bot!.status = 'ended'; ended.bot!.resource_released = true;
     a.applyRuntime(ended, now); expect(a.botId).toBe('');
   });

@@ -39,6 +39,7 @@ export class HomeStateService {
   syncCanPauseResume = false;
   syncPreparing = false;
   private syncReadFailed = false;
+  private runtimeErrorMessage = '';
   private sharedRuntime?: ZoomBotRuntime;
 
   applyRuntime(value: ZoomBotRuntime | undefined, now = Date.now()) {
@@ -52,6 +53,8 @@ export class HomeStateService {
     ++this.mediaRequestVersion;
     this.checkRuntimeFreshness(now);
     if (!this.syncFresh) return;
+    if (this.runtimeErrorMessage && this.err === this.runtimeErrorMessage) this.err = '';
+    this.runtimeErrorMessage = '';
     const bot = value.bot;
     this.botId = bot && !bot.resource_released ? bot.bot_id : '';
     this.syncBotStatus = bot?.status ?? '';
@@ -66,7 +69,7 @@ export class HomeStateService {
       this.mediaChangeMessage = 'Preparando ' + (value.preparation.media_path ?? 'medio') + (this.playing ? '; el medio actual continúa.' : '…');
     } else if (value.preparation?.status === 'failed') {
       this.mediaChangeMessage = 'No se pudo preparar el siguiente medio; consulta el error.';
-      this.err = value.preparation.error?.code ?? 'Error preparando el medio';
+      this.err = this.runtimeErrorMessage = value.preparation.error?.code ?? 'Error preparando el medio';
     } else {
       this.mediaChangeMessage = status === 'playing' ? 'Reproduciendo ' + (value.media_path ?? 'medio') :
         status === 'paused' ? 'Reproducción pausada.' : status === 'finished' ? 'Reproducción finalizada.' :
