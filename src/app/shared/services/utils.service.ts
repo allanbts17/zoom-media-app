@@ -8,7 +8,8 @@ export class UtilsService {
   //private state = inject(HomeStateService)
 
   canPauseResume(state: HomeStateService) {
-    return !state.busyRow && state.botId && state.botAction != 'stop' && state.botAction != "" && state.botId != ''
+    if (state.syncManaged) return state.syncFresh && !state.busyRow && state.syncCanPauseResume;
+    return (!state.syncManaged || state.syncFresh) && !state.busyRow && state.botId && state.botAction != 'stop' && state.botAction != "" && state.botId != ''
   }
 
 

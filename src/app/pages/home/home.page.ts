@@ -1,3 +1,4 @@
+import { timer } from 'rxjs';
 import { Component, DestroyRef, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -39,6 +40,11 @@ export class HomePage implements OnInit {
   }
 
   ngOnInit() {
+    this.backend.runtimeState$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: value => this.state.applyRuntime(value),
+      error: () => this.state.runtimeReadError(),
+    });
+    timer(5000, 5000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.state.checkRuntimeFreshness());
     this.backend.audios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: list => { this.state.audios = list; this.state.audioLoading = false; },
       error: error => { this.state.err = error?.message ?? 'Error cargando audios'; this.state.audioLoading = false; }
@@ -49,9 +55,9 @@ export class HomePage implements OnInit {
     });
     this.backend.configData$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: config => {
-        this.state.botId = config?.botId ?? '';
+        if (!this.state.syncManaged) this.state.botId = config?.botId ?? '';
         // Preparation is transient browser state; never restore a stale persisted busy row.
-        this.state.playing = config?.playing ?? false;
+        if (!this.state.syncManaged) this.state.playing = config?.playing ?? false;
         this.state.globalVideoOrder = config?.globalVideoOrder ?? [];
         this.state.globalAudioOrder = config?.globalAudioOrder ?? [];
         this.state.botMaxSessionSeconds = config?.botMaxSessionSeconds as number;

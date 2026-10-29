@@ -38,7 +38,6 @@ export class GlobalActionsLayout {
         if (this.state.activeListId() === 'all') {
           await this.backend.setConfig({
             botId: this.state.botId,
-            busyRow: this.state.busyRow,
             playing: this.state.playing,
             [this.state.activeTab() === 'audios' ? 'globalAudioOrder' : 'globalVideoOrder']: this.state.mediaOrder
           });
@@ -110,7 +109,7 @@ export class GlobalActionsLayout {
 
   async stopNow() {
     if (!this.state.botId) return;
-    const preparing = !!this.state.busyRow;
+    const preparing = this.state.syncPreparing || !!this.state.busyRow || (this.state.syncManaged && !this.state.syncFresh);
     const version = ++this.state.mediaRequestVersion;
     this.state.busyRow = '';
     this.state.mediaChangeMessage = 'Deteniendo reproducción y preparación…';

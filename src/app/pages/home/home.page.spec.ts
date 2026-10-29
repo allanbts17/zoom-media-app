@@ -89,6 +89,23 @@ describe('HomePage', () => {
     config.next({botId:'bot',busyRow:'videos/old.mp4',playing:true});
     expect(fixture.componentInstance.state.busyRow).toBe('videos/preparing.mp4');
   });
+  it('prefers shared agent state over stale config from another device', () => {
+    const config = new Subject<any>();
+    const runtime = new Subject<any>();
+    mocks.backend.configData$ = config; mocks.backend.runtimeState$ = runtime;
+    fixture.detectChanges();
+    runtime.next({schema_version:1,publisher_id:'agent',sequence:1,agent_online:true,
+      observed_at:Date.now()/1000,expires_at:Date.now()/1000+90,
+      bot:{bot_id:'real-bot',status:'active',resource_released:false,
+        playback:{playback_id:'real-play',status:'paused',can_pause:true,can_resume:true}},
+      preparation:null,media_path:'videos/actual.mp4'});
+    config.next({botId:'old-bot',playing:true,busyRow:'videos/old.mp4'});
+    expect(fixture.componentInstance.state.botId).toBe('real-bot');
+    expect(fixture.componentInstance.state.playbackId).toBe('real-play');
+    expect(fixture.componentInstance.state.botAction).toBe('pause');
+    expect(fixture.componentInstance.state.busyRow).toBe('');
+  });
+
   it('loads common data in home and unsubscribes when the page is destroyed', () => {
     const videos = new Subject<any[]>();
     const config = new Subject<any>();

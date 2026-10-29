@@ -83,6 +83,7 @@ export abstract class MediaPlaybackService {
   }
 
   async playSingle(v: MediaItem) {
+    if (this.state.syncManaged && !this.state.syncFresh) { this.state.err = 'Espera a confirmar el estado del agente'; return; }
     if (v.type !== this.kind) { this.state.err = 'Tipo de medio incompatible'; return; }
     if (!this.state.botId) { this.state.err = 'Crea el bot primero'; return; }
     const version = ++this.state.mediaRequestVersion;

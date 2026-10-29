@@ -40,7 +40,7 @@
         <td class="p-2">
           <div class="flex flex-col gap-2">
             <button class="px-2 py-1 border border-gray-500 dark:border-white/20 rounded text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
-                    (click)="playSingle(v)" [disabled]="!state.botId || state.busyRow === v.path">
+                    (click)="playSingle(v)" [disabled]="!state.botId || (state.syncManaged && !state.syncFresh) || state.busyRow === v.path">
               {{ state.busyRow === v.path ? 'Preparando…' : 'Reproducir' }}
             </button>
             <a class="px-2 py-1 border border-gray-500 dark:border-white/20 text-center rounded text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10" [href]="v.url" target="_blank" rel="noreferrer">

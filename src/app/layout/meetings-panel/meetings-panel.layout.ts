@@ -337,6 +337,10 @@ export class MeetingsPanelLayout implements OnInit {
   }
 
   ngDoCheck(): void {
+    if (this.state.syncManaged) {
+      this.botConnected.set(this.state.syncFresh && this.state.syncBotStatus === 'active');
+      return;
+    }
     const id = this.state.botId;
     if (!id) { this.observedBotId = ''; this.botConnected.set(false); return; }
     if (!this.agentReady() || this.botAction() || id === this.observedBotId) return;

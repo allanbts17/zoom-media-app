@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { LoadingService } from './loading.service';
 import { Firestore, CollectionReference, collection, collectionData, setDoc, doc, docData, DocumentData } from '@angular/fire/firestore';
 import { Observable, Subscription } from 'rxjs';
+import { ZoomBotRuntime } from '../interfaces/zoom-bot-runtime';
 import { Config, AudioItem, DocItem, VideoItem, DriveFile, ZoomBotJoinRequest, ZoomBotMedia } from '../interfaces';
 import { ZoomBotService } from './zoom-bot.service';
 
@@ -18,6 +19,7 @@ export class BackendService {
   videos$: Observable<VideoItem[]>;
   videosCollection: CollectionReference;
   dataCollection: CollectionReference;
+  readonly runtimeState$ = docData(doc(this.firestore, 'zoomBotRuntime/current')) as Observable<ZoomBotRuntime | undefined>;
   private configRef = doc(this.firestore, 'data/config');
   private subscription?: Subscription;
   configData$: Observable<Config | undefined>

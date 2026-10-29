@@ -40,6 +40,7 @@ export function createHomeServiceMocks(): HomeServiceMocks {
       logout: jasmine.createSpy('logout').and.callFake(async () => user.set(null)),
     },
     backend: {
+      runtimeState$: of(undefined),
       videos$: of([]),
       audios$: of([]),
       play: jasmine.createSpy('play').and.returnValue(of({action:'play',playback_id:'p1',operation_id:'play-operation'})),
