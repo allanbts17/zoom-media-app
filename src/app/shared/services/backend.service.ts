@@ -84,7 +84,7 @@ export class BackendService {
     return this.zoom.resume(botId, playbackId)
   }
 
-  stop(botId: string, playbackId: string) {
+  stop(botId: string, playbackId?: string) {
     return this.zoom.stop(botId, playbackId)
   }
 

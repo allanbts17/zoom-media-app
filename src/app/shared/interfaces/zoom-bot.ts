@@ -44,6 +44,7 @@ export interface ZoomBot {
     video_permission: boolean | null;
   };
   playback: ZoomBotPlayback;
+  preparation?: { playback_id: string; operation_id: string; status: 'preparing' | 'succeeded' | 'failed' | 'cancelled'; error: { code: string } | null } | null;
   media?: Record<string, unknown> | null;
   pending_operation_id?: string | null;
   resource_released: boolean;

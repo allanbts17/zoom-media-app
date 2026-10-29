@@ -2,6 +2,7 @@
 <div class="media-panel" role="tabpanel" [id]="'media-panel-' + state.activeTab()" [attr.aria-labelledby]="'media-tab-' + state.activeTab()">
 @if(state.activeTab() === 'videos' || state.activeTab() === 'audios') {
 @if(state.activeTab() === 'audios') { <label class="block mb-3">Subir audios (MP3 / WAV)<input type="file" accept=".mp3,.wav" multiple [disabled]="audios.uploading" (change)="audios.upload($event)" /></label> @if(audios.uploading) { <p role="status">Subiendo audios…</p> } }
+<p *ngIf="state.mediaChangeMessage" role="status" aria-live="polite" class="mb-2 text-sm">{{ state.mediaChangeMessage }}</p>
 <!-- Tabla de videos -->
 <section class="rounded-lg border border-gray-400 dark:border-white/10 flex-1 min-h-0 overflow-auto custom-scrollbar">
   <table class="w-full text-sm border-collapse">
@@ -40,7 +41,7 @@
           <div class="flex flex-col gap-2">
             <button class="px-2 py-1 border border-gray-500 dark:border-white/20 rounded text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
                     (click)="playSingle(v)" [disabled]="!state.botId || state.busyRow === v.path">
-              {{ state.busyRow === v.path ? '...' : 'Reproducir' }}
+              {{ state.busyRow === v.path ? 'Preparando…' : 'Reproducir' }}
             </button>
             <a class="px-2 py-1 border border-gray-500 dark:border-white/20 text-center rounded text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10" [href]="v.url" target="_blank" rel="noreferrer">
               Abrir URL

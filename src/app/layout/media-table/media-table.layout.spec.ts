@@ -1,3 +1,4 @@
+import { Subject } from 'rxjs';
 import { videoToMediaItem, audioToMediaItem } from '../../shared/utils/media-item.utils';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MediaTableLayout } from './media-table.layout';
@@ -92,7 +93,7 @@ describe('MediaTableLayout', () => {
     expect(playSpy).toHaveBeenCalledWith(videoToMediaItem(video));
   });
 
-  it('should show "..." on the row that is currently playing', () => {
+  it('shows preparation on the row waiting for playback confirmation', () => {
     state.loading = false;
     state.botId = 'bot-1';
     state.videos = [makeVideo('videos/uno.mp4')];
@@ -100,7 +101,7 @@ describe('MediaTableLayout', () => {
     fixture.detectChanges();
 
     const playBtn = rows()[0].querySelector('button') as HTMLButtonElement;
-    expect(playBtn.textContent?.trim()).toBe('...');
+    expect(playBtn.textContent?.trim()).toBe('Preparando…');
     expect(playBtn.disabled).toBeTrue();
   });
 
@@ -178,6 +179,26 @@ describe('MediaTableLayout', () => {
     component.selectTab('audios'); state.botId = 'bot-1';
     await component.playSingle(audioToMediaItem({audioPath:'audios/a.mp3',audioUrl:'https://storage/audios/a.mp3',duration:10}));
     expect(mocks.backend.play).toHaveBeenCalledWith('bot-1','audio','https://storage/audios/a.mp3');
+  });
+  it('keeps the current playback while the new operation prepares and confirms only on success', async () => {
+    state.botId = 'bot-1'; state.playbackId = 'previous'; state.playing = true;
+    const operation = new Subject<any>(); mocks.zoom.getOperation.and.returnValue(operation);
+    const result = component.playSingle(videoToMediaItem({videoPath:'videos/new.mp4',videoUrl:'https://storage/new.mp4',duration:10} as any));
+    await Promise.resolve(); await Promise.resolve();
+    expect(state.playbackId).toBe('previous');
+    expect(state.busyRow).toBe('videos/new.mp4');
+    expect(state.mediaChangeMessage).toContain('actual continúa');
+    operation.next({status:'succeeded'}); operation.complete(); await result;
+    expect(state.playbackId).toBe('p1'); expect(state.busyRow).toBe('');
+  });
+  it('preserves the current playback when preparation fails', async () => {
+    state.botId = 'bot-1'; state.playbackId = 'previous'; state.playing = true;
+    const operation = new Subject<any>(); mocks.zoom.getOperation.and.returnValue(operation);
+    const result = component.playSingle(videoToMediaItem({videoPath:'videos/new.mp4',videoUrl:'https://storage/new.mp4',duration:10} as any));
+    await Promise.resolve(); await Promise.resolve();
+    operation.next({status:'failed',error:{code:'MEDIA_RANGE_FAILED'}}); operation.complete(); await result;
+    expect(state.playbackId).toBe('previous'); expect(state.playing).toBeTrue();
+    expect(state.err).toBe('MEDIA_RANGE_FAILED');
   });
   it('blocks tab changes during reordering', () => {
     state.reorderMode = true; component.selectTab('audios'); expect(state.activeTab()).toBe('videos');

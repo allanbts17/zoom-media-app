@@ -1,4 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { ZoomBotService } from '../../shared/services/zoom-bot.service';
+import { Component, DestroyRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HomeStateService } from '../../pages/home/home-state.service';
@@ -19,6 +21,8 @@ import { UtilsService } from '../../shared/services/utils.service';
 export class GlobalActionsLayout {
   readonly state = inject(HomeStateService);
   private readonly backend = inject(BackendService);
+  private readonly zoom = inject(ZoomBotService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly loadingService = inject(LoadingService);
   private readonly confirmService = inject(ModalService);
   private readonly videoListsService = inject(VideoListsService);
@@ -106,18 +110,34 @@ export class GlobalActionsLayout {
 
   async stopNow() {
     if (!this.state.botId) return;
+    const preparing = !!this.state.busyRow;
+    const version = ++this.state.mediaRequestVersion;
+    this.state.busyRow = '';
+    this.state.mediaChangeMessage = 'Deteniendo reproducción y preparación…';
     try {
-      const res = await this.backend.stop(this.state.botId, this.state.playbackId).toPromise()
-      this.state.botAction = res?.action as ZoomBotAction
-
-      // await this.backend.stopMedia(this.state.botId).toPromise();
-    } catch (e: any) {
-      this.state.err = e?.message ?? 'Error deteniendo';
-    } finally {
-      this.state.botAction = 'stop';
-      this.state.playbackId = ''
-      this.state.playing = false;
-      this.state.updateConfig()
+      const ticket = await firstValueFrom(this.backend.stop(this.state.botId, preparing ? undefined : this.state.playbackId));
+      if (!ticket.operation_id) throw new Error('La API no devolvió operation_id');
+      const deadline = Date.now() + 60000;
+      while (version === this.state.mediaRequestVersion && !this.destroyRef.destroyed) {
+        const operation = await firstValueFrom(this.zoom.getOperation(ticket.operation_id));
+        if (version !== this.state.mediaRequestVersion || this.destroyRef.destroyed) return;
+        if (operation.status === 'succeeded') {
+          this.state.botAction = 'stop';
+          this.state.playbackId = '';
+          this.state.playing = false;
+          this.state.mediaChangeMessage = 'Reproducción detenida.';
+          await this.state.updateConfig();
+          return;
+        }
+        if (operation.status === 'failed' || operation.status === 'cancelled') throw new Error(operation.error?.code ?? 'No se pudo detener');
+        if (Date.now() >= deadline) throw new Error('No se pudo confirmar stop; consulta el estado del bot.');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+    } catch (error: any) {
+      if (version === this.state.mediaRequestVersion) {
+        this.state.err = error?.message ?? 'Error deteniendo';
+        this.state.mediaChangeMessage = 'No se pudo confirmar la detención.';
+      }
     }
   }
 }

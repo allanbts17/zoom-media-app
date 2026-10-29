@@ -29,6 +29,8 @@ export class HomeStateService {
   selectedMap: Record<string, boolean> = {};
   playing = false;
   busyRow = '';
+  mediaRequestVersion = 0;
+  mediaChangeMessage = '';
   botId = '';
   videoLists: VideoList[] = [];
   activeListId = signal<string>('all');

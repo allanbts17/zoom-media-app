@@ -42,7 +42,7 @@ export class ApiDocsPage {
     { id: 'leave', method: 'DELETE', path: '/bots/{bot_id}', title: 'Salir de la reunión', description: 'Retira el bot y libera la plaza al completar la limpieza.' },
     { id: 'events', method: 'GET', path: '/bots/{bot_id}/events', title: 'Eventos del bot', description: 'Consulta eventos. Puedes añadir after_sequence, limit o cursor.', query: 'limit=20' },
     { id: 'operation', method: 'GET', path: '/operations/{operation_id}', title: 'Consultar operación', description: 'Comprueba si una orden terminó en succeeded, failed o cancelled.' },
-    { id: 'play', method: 'POST', path: '/bots/{bot_id}/play', title: 'Reproducir medios', description: 'Inicia video, audio o imagen en un bot conectado. Edita el enlace público de Storage.', examples: {
+    { id: 'play', method: 'POST', path: '/bots/{bot_id}/play', title: 'Reproducir medios', description: 'Prepara el siguiente medio mientras continúa el actual. Video usa lectura progresiva de Storage. Consulta la operación hasta succeeded; 202 solo confirma aceptación. GET del bot muestra playback actual y preparation del siguiente.', examples: {
       Video: { media: { type: 'video', url: 'https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/videos/video.mp4', audio_enabled: true } },
       Audio: { media: { type: 'audio', url: 'https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/audios/audio.mp3' } },
       Imagen: { media: { type: 'image', url: 'https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/images/imagen.jpg' } },

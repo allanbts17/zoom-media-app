@@ -1,9 +1,11 @@
-import { Injectable, computed, inject } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { ZoomBotService } from '../../../shared/services/zoom-bot.service';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { reorderVisiblePaths } from '../../../shared/utils/media-list.utils';
 import { HomeStateService } from '../../../pages/home/home-state.service';
 import { BackendService } from '../../../shared/services/backend.service';
-import { MediaItem, ZoomBotTicket } from '../../../shared/interfaces';
+import { MediaItem } from '../../../shared/interfaces';
 
 /** Shared playback and ordering behavior; provided only through the media layout.
  * Collection documents are adapted to neutral MediaItem rows. */
@@ -12,6 +14,8 @@ export abstract class MediaPlaybackService {
   abstract readonly kind: 'video' | 'audio';
   readonly state = inject(HomeStateService);
   private readonly backend = inject(BackendService);
+  private readonly zoom = inject(ZoomBotService);
+  private readonly destroyRef = inject(DestroyRef);
 
   get pathsKey(): 'videoPaths' | 'audioPaths' { return this.kind === 'audio' ? 'audioPaths' : 'videoPaths'; }
   get items(): MediaItem[] { return this.state.mediaItemsFor(this.kind); }
@@ -81,36 +85,41 @@ export abstract class MediaPlaybackService {
   async playSingle(v: MediaItem) {
     if (v.type !== this.kind) { this.state.err = 'Tipo de medio incompatible'; return; }
     if (!this.state.botId) { this.state.err = 'Crea el bot primero'; return; }
+    const version = ++this.state.mediaRequestVersion;
+    const bot = this.state.botId;
+    this.state.err = '';
+    this.state.busyRow = v.path;
+    this.state.mediaChangeMessage = 'Preparando ' + this.getName(v.path) + (this.state.playbackId ? '; el medio actual continúa.' : '…');
     try {
-      this.state.busyRow = v.path;
-      await this.state.updateConfig()
-      if (v.duration == null) {
-        try { v.duration = await this.loadDuration(v.url); } catch { }
+      // Send play immediately: browser metadata and Firestore are outside the critical path.
+      const ticket = await firstValueFrom(this.backend.play(bot, this.kind, v.url));
+      if (!ticket.operation_id) throw new Error('La API no devolvió operation_id');
+      const deadline = Date.now() + 60000;
+      while (version === this.state.mediaRequestVersion && !this.destroyRef.destroyed) {
+        const operation = await firstValueFrom(this.zoom.getOperation(ticket.operation_id));
+        if (version !== this.state.mediaRequestVersion || bot !== this.state.botId || this.destroyRef.destroyed) return;
+        if (operation.status === 'succeeded') {
+          this.state.botAction = 'play';
+          this.state.playbackId = ticket.playback_id ?? '';
+          this.state.playing = true;
+          this.state.mediaChangeMessage = 'Reproduciendo ' + this.getName(v.path);
+          await this.state.updateConfig();
+          return;
+        }
+        if (operation.status === 'failed' || operation.status === 'cancelled') {
+          throw new Error(operation.error?.code ?? 'No se pudo iniciar el medio');
+        }
+        if (Date.now() >= deadline) throw new Error('La preparación sigue pendiente; consulta el estado del bot antes de reintentar.');
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
-      const res: ZoomBotTicket = await this.backend.play(this.state.botId, this.kind, v.url).toPromise() as ZoomBotTicket
-      this.state.botAction = res.action
-      this.state.playbackId = res?.playback_id as string;
-
-    } catch (e: any) {
-      this.state.err = e?.message ?? 'Error reproduciendo';
+    } catch (error: any) {
+      if (version === this.state.mediaRequestVersion) {
+        this.state.err = error?.error?.error?.code ?? error?.message ?? 'Error preparando el medio';
+        this.state.mediaChangeMessage = 'No se pudo confirmar el cambio de medio.';
+      }
     } finally {
-      this.state.busyRow = '';
-      await this.state.updateConfig();
+      if (version === this.state.mediaRequestVersion) this.state.busyRow = '';
     }
-  }
-
-  private loadDuration(url: string): Promise<number> {
-    return new Promise((resolve, reject) => {
-      const v = document.createElement(this.kind);
-      v.preload = 'metadata';
-      v.src = url;
-      const cleanup = () => { v.src = ''; v.remove(); };
-      v.onloadedmetadata = () => {
-        const d = v.duration; cleanup();
-        isFinite(d) ? resolve(d) : reject(new Error('No duration'));
-      };
-      v.onerror = () => { cleanup(); reject(new Error('Metadata load error')); };
-    });
   }
 
   getName(path: string): string {

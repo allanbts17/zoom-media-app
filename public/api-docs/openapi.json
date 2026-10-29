@@ -1211,7 +1211,7 @@
         "tags": [
           "Reproducción"
         ],
-        "description": "Bot active. Un nuevo play detiene y reemplaza el medio actual sin salir de la reunión. Si otro play sigue pendiente, se cancela y prevalece el último aceptado. Detiene antes de descargar: si el archivo nuevo falla, el bot queda conectado sin reproducir. El playback_id se asigna al aceptar. Succeeded confirma los primeros envíos requeridos, no el fin del clip. Video/audio se reproducen una vez.",
+        "description": "Bot active. Prepara el medio elegido mientras continúa el actual. Video usa lectura progresiva por rangos de Storage, sin exigir descarga completa; audio e imagen conservan caché local. Si falla la preparación, continúa el medio anterior y la operación falla. Al preparar el inicio se detiene el anterior y se inicia el nuevo sincronizado; succeeded confirma primeros envíos, no EOF. preparation describe el siguiente medio; playback conserva el actual durante preparación. Prevalece el último play aceptado; stop/leave cancelan preparación. El playback_id nuevo se asigna al aceptar. Video/audio se reproducen una vez. La red puede fallar después del inicio; se reporta error de reproducción.",
         "security": [
           {
             "BearerAuth": []
@@ -2846,6 +2846,43 @@
           "playback": {
             "$ref": "#/components/schemas/PlaybackStatus"
           },
+          "preparation": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Siguiente reproducción. playback conserva el medio actual durante preparación o si falla.",
+            "properties": {
+              "playback_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "operation_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "preparing",
+                  "succeeded",
+                  "failed",
+                  "cancelled"
+                ]
+              },
+              "error": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "media": {
             "type": [
               "object",
@@ -2984,7 +3021,7 @@
               "object",
               "null"
             ],
-            "description": "Resultado aplicado, por ejemplo posición y estado de reproducción."
+            "description": "Resultado aplicado. Play confirma primeros cuadros/bloques aceptados e incluye queue_seconds, preparation_seconds, transition_seconds y start_seconds; no implica descarga completa en modo progresivo."
           },
           "error": {
             "type": [
