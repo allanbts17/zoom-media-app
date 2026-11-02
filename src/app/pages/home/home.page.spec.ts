@@ -1,6 +1,6 @@
 import { videoToMediaItem } from '../../shared/utils/media-item.utils';
 import { provideRouter } from '@angular/router';
-import { Subject } from 'rxjs';
+import { concat, defer, of, Subject, throwError } from 'rxjs';
 import { By } from '@angular/platform-browser';
 
 import { MeetingsPanelLayout } from '../../layout/meetings-panel/meetings-panel.layout';
@@ -8,7 +8,7 @@ import { MediaTableLayout } from '../../layout/media-table/media-table.layout';
 import { SelectionBarLayout } from '../../layout/selection-bar/selection-bar.layout';
 import { GlobalActionsLayout } from '../../layout/global-actions/global-actions.layout';
 import { makeVideo } from './testing/home-testing';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { HomePage } from './home.page';
 import { HomeStateService } from './home-state.service';
 import { createHomeServiceMocks, HomeServiceMocks, provideHomeServiceMocks } from './testing/home-testing';
@@ -105,6 +105,43 @@ describe('HomePage', () => {
     expect(fixture.componentInstance.state.botAction).toBe('pause');
     expect(fixture.componentInstance.state.busyRow).toBe('');
   });
+
+  it('shows permission errors without auto-retrying and reconnects using the retry button', () => {
+    let attempts = 0;
+    const value = {schema_version:1,publisher_id:'agent',sequence:1,agent_online:true,
+      observed_at:Date.now()/1000,expires_at:Date.now()/1000+90,
+      bot:{bot_id:'real-bot',status:'active',resource_released:false,
+        playback:{playback_id:'real-play',status:'playing',can_pause:true}},
+      preparation:null,media_path:'videos/actual.mp4'};
+    mocks.backend.runtimeState$ = defer(() => ++attempts === 1 ?
+      throwError(() => ({code:'permission-denied'})) : of(value));
+    fixture.detectChanges();
+    expect(attempts).toBe(1);
+    expect(el.textContent).toContain('Tu usuario no tiene permiso');
+    const button = Array.from(el.querySelectorAll('button')).find(node => node.textContent?.includes('Reintentar sincronización'));
+    expect(button).toBeTruthy(); button!.click(); fixture.detectChanges();
+    expect(attempts).toBe(2); expect(fixture.componentInstance.state.syncReadErrorCode).toBe('');
+    expect(fixture.componentInstance.state.mediaChangeMessage).toContain('videos/actual.mp4');
+  });
+
+  it('recovers a temporary failure after backoff', fakeAsync(() => {
+    let attempts = 0;
+    mocks.backend.runtimeState$ = defer(() => ++attempts < 3 ?
+      throwError(() => ({code:'unavailable'})) : of(undefined));
+    fixture.detectChanges(); expect(attempts).toBe(1);
+    tick(1000); expect(attempts).toBe(2);
+    tick(2000); expect(attempts).toBe(3);
+    fixture.destroy();
+  }));
+
+  it('bounds transient retries and cancels pending retries when destroyed', fakeAsync(() => {
+    let attempts = 0;
+    mocks.backend.runtimeState$ = defer(() => { ++attempts; return concat(of(undefined), throwError(() => ({code:'unavailable'}))); });
+    fixture.detectChanges(); tick(7000);
+    expect(attempts).toBe(4); tick(10000); expect(attempts).toBe(4);
+    fixture.componentInstance.retryRuntime(); expect(attempts).toBe(5);
+    fixture.destroy(); tick(10000); expect(attempts).toBe(5);
+  }));
 
   it('loads common data in home and unsubscribes when the page is destroyed', () => {
     const videos = new Subject<any[]>();

@@ -1,4 +1,4 @@
-import { timer } from 'rxjs';
+import { retry, Subscription, throwError, timer } from 'rxjs';
 import { Component, DestroyRef, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -31,7 +31,7 @@ export class HomePage implements OnInit {
 
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  //private readonly zoom = inject(ZoomBotService);
+  private runtimeSubscription?: Subscription;
 
   constructor() {
     effect(() => {
@@ -39,11 +39,30 @@ export class HomePage implements OnInit {
     });
   }
 
-  ngOnInit() {
-    this.backend.runtimeState$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+  /** Reattach after a terminal Firestore error; never leave two listeners running. */
+  retryRuntime() {
+    this.runtimeSubscription?.unsubscribe();
+    this.runtimeSubscription = this.backend.runtimeState$.pipe(
+      retry({
+        count: 3,
+        delay: (error, attempt) => {
+          const code = this.state.runtimeErrorCode(error);
+          if (!['unavailable', 'deadline-exceeded', 'aborted', 'resource-exhausted', 'internal'].includes(code)) {
+            return throwError(() => error);
+          }
+          this.state.runtimeReadError(error);
+          return timer(1000 * 2 ** (attempt - 1));
+        },
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: value => this.state.applyRuntime(value),
-      error: () => this.state.runtimeReadError(),
+      error: error => this.state.runtimeReadError(error),
     });
+  }
+
+  ngOnInit() {
+    this.retryRuntime();
     timer(5000, 5000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.state.checkRuntimeFreshness());
     this.backend.audios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: list => { this.state.audios = list; this.state.audioLoading = false; },

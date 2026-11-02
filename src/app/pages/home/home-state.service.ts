@@ -35,6 +35,7 @@ export class HomeStateService {
   syncManaged = false;
   syncFresh = false;
   syncMessage = '';
+  syncReadErrorCode = '';
   syncBotStatus = '';
   syncCanPauseResume = false;
   syncPreparing = false;
@@ -45,9 +46,11 @@ export class HomeStateService {
   applyRuntime(value: ZoomBotRuntime | undefined, now = Date.now()) {
     if (!value || value.schema_version !== 1) return;
     const previous = this.sharedRuntime;
-    if (previous?.publisher_id === value.publisher_id && value.sequence <= previous.sequence) return;
+    if (previous?.publisher_id === value.publisher_id && (value.sequence < previous.sequence ||
+        (value.sequence === previous.sequence && !this.syncReadFailed))) return;
     this.sharedRuntime = value;
     this.syncReadFailed = false;
+    this.syncReadErrorCode = '';
     this.syncManaged = true;
     // A confirmed agent snapshot supersedes any in-flight browser response.
     ++this.mediaRequestVersion;
@@ -77,16 +80,31 @@ export class HomeStateService {
     }
   }
 
-  runtimeReadError() {
+  runtimeErrorCode(error?: unknown): string {
+    const raw = (error as {code?: unknown} | undefined)?.code;
+    const code = typeof raw === 'string' ? raw.split('/').pop() ?? '' : '';
+    return /^[a-z-]{1,40}$/.test(code) ? code : 'unknown';
+  }
+
+  runtimeReadError(error?: unknown) {
     this.syncReadFailed = true;
+    this.syncManaged = true;
+    this.syncReadErrorCode = this.runtimeErrorCode(error);
     this.syncFresh = false;
     ++this.mediaRequestVersion;
     this.busyRow = '';
-    this.syncMessage = 'No se pudo leer el estado compartido del bot.';
+    this.mediaChangeMessage = '';
+    const messages: Record<string, string> = {
+      'permission-denied': 'Tu usuario no tiene permiso para leer el estado compartido del bot. Comprueba los UID autorizados en Firestore y pulsa Reintentar.',
+      'unauthenticated': 'No se pudo validar tu sesión para leer el estado del bot. Vuelve a iniciar sesión.',
+      'unavailable': 'No hay conexión con el estado compartido del bot. Puedes reintentar.',
+      'deadline-exceeded': 'La conexión con el estado compartido tardó demasiado. Puedes reintentar.',
+    };
+    this.syncMessage = (messages[this.syncReadErrorCode] ?? 'No se pudo leer el estado compartido del bot. Puedes reintentar.') + ' (' + this.syncReadErrorCode + ')';
   }
 
   checkRuntimeFreshness(now = Date.now()) {
-    if (!this.sharedRuntime) return;
+    if (!this.sharedRuntime || this.syncReadFailed) return;
     const wasFresh = this.syncFresh;
     this.syncFresh = !this.syncReadFailed && this.sharedRuntime.agent_online && now / 1000 < this.sharedRuntime.expires_at;
     if (wasFresh && !this.syncFresh) ++this.mediaRequestVersion;

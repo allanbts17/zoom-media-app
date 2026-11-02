@@ -11,6 +11,7 @@ flex flex-col overflow-hidden
   <app-meetings-panel (driveRequested)="mediaTable.openDrive()"></app-meetings-panel>
 
   <p *ngIf="state.syncMessage" role="status" class="mb-2 text-sm text-amber-700 dark:text-amber-300">{{ state.syncMessage }}</p>
+  <button *ngIf="state.syncReadErrorCode" type="button" (click)="retryRuntime()" class="self-start mb-2 px-3 py-1 border rounded text-sm">Reintentar sincronización</button>
   <app-global-actions></app-global-actions>
 
   <app-selection-bar></app-selection-bar>

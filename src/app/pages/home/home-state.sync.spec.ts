@@ -65,6 +65,28 @@ describe('Shared agent state', () => {
     a.applyRuntime(ended, now); expect(a.botId).toBe('');
   });
 
+  it('preserves the specific error across freshness checks and clears obsolete playback text', () => {
+    a.applyRuntime(runtime(), now); a.busyRow = 'videos/next.mp4';
+    a.runtimeReadError({code:'firestore/permission-denied'});
+    a.checkRuntimeFreshness(now + 5000);
+    expect(a.syncReadErrorCode).toBe('permission-denied');
+    expect(a.syncMessage).toContain('Tu usuario no tiene permiso');
+    expect(a.mediaChangeMessage).toBe(''); expect(a.busyRow).toBe('');
+    expect(a.syncManaged).toBeTrue(); expect(a.syncFresh).toBeFalse();
+    a.runtimeReadError({code:'unauthenticated'});
+    expect(a.syncMessage).toContain('Vuelve a iniciar sesión');
+  });
+
+  it('recovers from a read error on the same document version but rejects older versions', () => {
+    a.applyRuntime(runtime(2), now);
+    a.runtimeReadError({code:'unavailable'});
+    a.applyRuntime(runtime(1), now);
+    expect(a.syncFresh).toBeFalse();
+    a.applyRuntime(runtime(2), now);
+    expect(a.syncFresh).toBeTrue(); expect(a.syncReadErrorCode).toBe('');
+    expect(a.syncMessage).toBe(''); expect(a.mediaChangeMessage).toContain('videos/current.mp4');
+  });
+
   it('does not trust an offline agent or a failed listener', () => {
     const value = runtime(); value.agent_online = false;
     a.applyRuntime(value, now); expect(a.syncFresh).toBeFalse();
